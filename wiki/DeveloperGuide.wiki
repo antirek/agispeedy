@@ -285,3 +285,585 @@ function hooks_connection_close()
 
 === AGI ===
 
+Simple Asterisk Gateway Interface functions.
+
+agi_anyname.php
+{{{
+<?php
+function agi_main()
+{
+    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
+    $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
+    $AGI_PARAMS = $CLIENT['agi']['params']; //agi params variable
+
+    agi_answer();
+    agi_say_digits($AGI_PARAMS['digits']);
+    agi_hangup();
+
+return(true);
+}
+?>
+}}}
+
+==== agi_evaluate ====
+
+send an agi send and waitting for receive.
+
+AGI commands url : http://www.voip-info.org/wiki/view/Asterisk+AGI
+
+{{{
+$result = agi_evaluate("SAY DIGITS $digits \"$escape_digits\"");
+print_r($result);
+}}}
+
+
+==== agi_answer ====
+
+  * Answer channel if not already in answer state.
+  * @link http://www.voip-info.org/wiki-answer
+  * @return array, see evaluate for return information.  ['result'] is 0 on success, -1 on failure.
+{{{
+function agi_answer()
+}}}
+
+==== agi_channel_status ====
+
+Get the status of the specified channel. If no channel name is specified, return the status of the current channel.
+
+  * @link http://www.voip-info.org/wiki-channel+status
+  * @param string $channel
+  * @return array, see evaluate for return information. ['data'] contains description.
+
+{{{
+function agi_channel_status($channel='')
+}}}
+
+
+==== agi_database_del ====
+
+Deletes an entry in the Asterisk database for a given family and key.
+
+  * @link http://www.voip-info.org/wiki-database+del
+  * @param string $family
+  * @param string $key
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise.
+{{{
+function agi_database_del($family, $key)
+}}}
+
+
+==== agi_database_deltree ====
+
+Deletes a family or specific keytree within a family in the Asterisk database.
+
+  * @link http://www.voip-info.org/wiki-database+deltree
+  * @param string $family
+  * @param string $keytree
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise.
+{{{
+function agi_database_deltree($family, $keytree='')
+}}}
+
+
+==== agi_database_get ====
+
+Retrieves an entry in the Asterisk database for a given family and key.
+
+  * @link http://www.voip-info.org/wiki-database+get
+  * @param string $family
+  * @param string $key
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 failure. ['data'] holds the value
+{{{
+function agi_database_get($family, $key)
+}}}
+
+
+==== agi_database_put ====
+
+Adds or updates an entry in the Asterisk database for a given family, key, and value.
+
+  * @param string $family
+  * @param string $key
+  * @param string $value
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
+{{{
+function agi_database_put($family, $key, $value)
+}}}
+
+
+==== agi_set_global_var ====
+
+Sets a global variable, using Asterisk 1.6 syntax.
+
+  * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
+  * @param string $pVariable
+  * @param string|int|float $pValue
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
+{{{
+function agi_set_global_var($pVariable, $pValue)
+}}}
+
+
+==== agi_set_var ====
+Sets a variable, using Asterisk 1.6 syntax.
+
+  * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
+  * @param string $pVariable
+  * @param string|int|float $pValue
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
+{{{
+function agi_set_var($pVariable, $pValue)
+}}}
+
+
+==== agi_exec ====
+
+Executes the specified Asterisk application with given options.
+
+  * @link http://www.voip-info.org/wiki-exec
+  * @link http://www.voip-info.org/wiki-Asterisk+-+documentation+of+application+commands
+  * @param string $application
+  * @param mixed $options
+  * @return array, see evaluate for return information. ['result'] is whatever the application returns, or -2 on failure to find application
+{{{
+function agi_exec($application, $options)
+}}}
+
+
+==== agi_get_data ====
+
+Plays the given file and receives DTMF data.
+
+This is similar to STREAM FILE, but this command can accept and return many DTMF digits,
+while STREAM FILE returns immediately after the first DTMF digit is detected.
+
+Asterisk looks for the file to play in /var/lib/asterisk/sounds by default.
+
+If the user doesn't press any keys when the message plays, there is $timeout milliseconds
+of silence then the command ends. 
+
+The user has the opportunity to press a key at any time during the message or the
+post-message silence. If the user presses a key while the message is playing, the
+message stops playing. When the first key is pressed a timer starts counting for
+$timeout milliseconds. Every time the user presses another key the timer is restarted.
+The command ends when the counter goes to zero or the maximum number of digits is entered,
+whichever happens first. 
+
+If you don't specify a time out then a default timeout of 2000 is used following a pressed
+digit. If no digits are pressed then 6 seconds of silence follow the message. 
+
+If you don't specify $max_digits then the user can enter as many digits as they want. 
+
+Pressing the # key has the same effect as the timer running out: the command ends and
+any previously keyed digits are returned. A side effect of this is that there is no
+way to read a # key using this command.
+
+  * @link http://www.voip-info.org/wiki-get+data
+  * @param string $filename file to play. Do not include file extension.
+  * @param integer $timeout milliseconds
+  * @param integer $max_digits
+  * @return array, see evaluate for return information. ['result'] holds the digits and ['data'] holds the timeout if present.
+  * This differs from other commands with return DTMF as numbers representing ASCII characters.
+{{{
+function agi_get_data($filename, $timeout=NULL, $max_digits=NULL)
+}}}
+
+==== agi_get_variable ====
+
+Fetch the value of a variable.
+Does not work with global variables. Does not work with some variables that are generated by modules.
+
+  * @link http://www.voip-info.org/wiki-get+variable
+  * @link http://www.voip-info.org/wiki-Asterisk+variables
+  * @param string $variable name
+  * @param boolean $getvalue return the value only
+  * @return array, see evaluate for return information. ['result'] is 0 if variable hasn't been set, 1 if it has. ['data'] holds the value. returns value if $getvalue is TRUE
+{{{
+function agi_get_variable($variable,$getvalue=FALSE)
+}}}
+
+==== agi_get_fullvariable ====
+
+Fetch the value of a full variable.
+  * @link http://www.voip-info.org/wiki/view/get+full+variable
+  * @link http://www.voip-info.org/wiki-Asterisk+variables
+  * @param string $variable name
+  * @param string $channel channel
+  * @param boolean $getvalue return the value only 
+  * @return array, see evaluate for return information. ['result'] is 0 if variable hasn't been set, 1 if it has. ['data'] holds the value.  returns value if $getvalue is TRUE
+{{{
+function agi_get_fullvariable($variable,$channel=FALSE,$getvalue=FALSE)
+}}}
+
+==== agi_hangup ====
+
+Hangup the specified channel. If no channel name is given, hang up the current channel.
+
+With power comes responsibility. Hanging up channels other than your own isn't something
+that is done routinely. If you are not sure why you are doing so, then don't.
+
+  * @link http://www.voip-info.org/wiki-hangup
+  * @param string $channel
+  * @return array, see evaluate for return information. ['result'] is 1 on success, -1 on failure.
+{{{
+function agi_hangup($channel='')
+}}}
+
+==== agi_noop ====
+
+Does nothing.
+
+  * @link http://www.voip-info.org/wiki-noop
+  * @return array, see evaluate for return information.
+{{{
+function agi_noop($string="")
+}}}
+
+==== agi_receive_char ====
+
+Receive a character of text from a connected channel. Waits up to $timeout milliseconds for
+a character to arrive, or infinitely if $timeout is zero.
+
+  * @link http://www.voip-info.org/wiki-receive+char
+  * @param integer $timeout milliseconds
+  * @return array, see evaluate for return information. ['result'] is 0 on timeout or not supported, -1 on failure. Otherwise 
+  * it is the decimal value of the DTMF tone. Use chr() to convert to ASCII.
+{{{
+function agi_receive_char($timeout=-1)
+}}}
+
+
+==== agi_record_file ====
+
+Record sound to a file until an acceptable DTMF digit is received or a specified amount of
+time has passed. Optionally the file BEEP is played before recording begins.
+
+  * @link http://www.voip-info.org/wiki-record+file
+  * @param string $file to record, without extension, often created in /var/lib/asterisk/sounds
+  * @param string $format of the file. GSM and WAV are commonly used formats. MP3 is read-only and thus cannot be used.
+  * @param string $escape_digits
+  * @param integer $timeout is the maximum record time in milliseconds, or -1 for no timeout.
+  * @param integer $offset to seek to without exceeding the end of the file.
+  * @param boolean $beep
+  * @param integer $silence number of seconds of silence allowed before the function returns despite the 
+  * lack of dtmf digits or reaching timeout.
+  * @return array, see evaluate for return information. ['result'] is -1 on error, 0 on hangup, otherwise a decimal value of the 
+  * DTMF tone. Use chr() to convert to ASCII.
+{{{
+function agi_record_file($file, $format, $escape_digits='', $timeout=-1, $offset=NULL, $beep=false, $silence=NULL)
+}}}
+
+
+==== agi_say_digits ====
+
+Say the given digit string, returning early if any of the given DTMF escape digits are received on the channel.
+
+  * @link http://www.voip-info.org/wiki-say+digits
+  * @param integer $digits
+  * @param string $escape_digits
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
+  * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
+{{{
+function agi_say_digits($digits, $escape_digits='')
+}}}
+
+==== agi_say_number ====
+
+Say the given number, returning early if any of the given DTMF escape digits are received on the channel.
+
+  * @link http://www.voip-info.org/wiki-say+number
+  * @param integer $number
+  * @param string $escape_digits
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
+  * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
+{{{
+function agi_say_number($number, $escape_digits='')
+}}}
+
+==== agi_say_phonetic ====
+
+Say the given character string, returning early if any of the given DTMF escape digits are received on the channel.
+
+  * @link http://www.voip-info.org/wiki-say+phonetic
+  * @param string $text
+  * @param string $escape_digits
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
+  * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
+{{{
+function agi_say_phonetic($text, $escape_digits='')
+}}}
+
+==== agi_say_time ====
+
+Say a given time, returning early if any of the given DTMF escape digits are received on the channel.
+
+  * @link http://www.voip-info.org/wiki-say+time
+  * @param integer $time number of seconds elapsed since 00:00:00 on January 1, 1970, Coordinated Universal Time (UTC).
+  * @param string $escape_digits
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
+  * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
+{{{
+function agi_say_time($time=NULL, $escape_digits='')
+}}}
+
+==== agi_send_image ====
+
+Send the specified image on a channel.
+Most channels do not support the transmission of images.
+
+  * @link http://www.voip-info.org/wiki-send+image
+  * @param string $image without extension, often in /var/lib/asterisk/images
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if the image is sent or 
+  * channel does not support image transmission.
+{{{
+function agi_send_image($image)
+}}}
+
+
+==== agi_send_text ====
+
+Send the given text to the connected channel.
+Most channels do not support transmission of text.
+
+  * @link http://www.voip-info.org/wiki-send+text
+  * @param $text
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if the text is sent or 
+  * channel does not support text transmission.
+{{{
+function agi_send_text($text)
+}}}
+
+
+==== agi_set_autohangup ====
+
+Cause the channel to automatically hangup at $time seconds in the future.
+If $time is 0 then the autohangup feature is disabled on this channel.
+If the channel is hungup prior to $time seconds, this setting has no effect.
+
+  * @link http://www.voip-info.org/wiki-set+autohangup
+  * @param integer $time until automatic hangup
+  * @return array, see evaluate for return information.
+{{{
+function agi_set_autohangup($time=0)
+}}}
+
+
+==== agi_set_context ====
+
+Sets the context for continuation upon exiting the application.
+
+Setting the context does NOT automatically reset the extension and the priority; if you want to start at the top of the new 
+context you should set extension and priority yourself. 
+
+If you specify a non-existent context you receive no error indication (['result'] is still 0) but you do get a 
+warning message on the Asterisk console.
+
+  * @link http://www.voip-info.org/wiki-set+context
+  * @param string $context 
+  * @return array, see evaluate for return information.
+{{{
+function agi_set_context($context)
+}}}
+
+==== agi_set_extension ====
+
+Set the extension to be used for continuation upon exiting the application.
+
+Setting the extension does NOT automatically reset the priority. If you want to start with the first priority of the 
+extension you should set the priority yourself. 
+
+If you specify a non-existent extension you receive no error indication (['result'] is still 0) but you do 
+get a warning message on the Asterisk console.
+
+  * @link http://www.voip-info.org/wiki-set+extension
+  * @param string $extension
+  * @return array, see evaluate for return information.
+{{{
+function agi_set_extension($extension)
+}}}
+
+==== agi_set_music ====
+
+Enable/Disable Music on hold generator.
+
+  * @link http://www.voip-info.org/wiki-set+music
+  * @param boolean $enabled
+  * @param string $class
+  * @return array, see evaluate for return information.
+{{{
+function agi_set_music($enabled=true, $class='')
+}}}
+
+==== agi_set_priority ====
+
+Set the priority to be used for continuation upon exiting the application.
+
+If you specify a non-existent priority you receive no error indication (['result'] is still 0)
+and no warning is issued on the Asterisk console.
+
+  * @link http://www.voip-info.org/wiki-set+priority
+  * @param integer $priority
+  * @return array, see evaluate for return information.
+{{{
+function agi_set_priority($priority)
+}}}
+
+
+==== agi_set_variable ====
+
+Sets a variable to the specified value. The variables so created can later be used by later using ${<variablename>}
+in the dialplan.
+
+These variables live in the channel Asterisk creates when you pickup a phone and as such they are both local and temporary. 
+Variables created in one channel can not be accessed by another channel. When you hang up the phone, the channel is deleted 
+and any variables in that channel are deleted as well.
+
+  * @link http://www.voip-info.org/wiki-set+variable
+  * @param string $variable is case sensitive
+  * @param string $value
+  * @return array, see evaluate for return information.
+{{{
+function agi_set_variable($variable, $value)
+}}}
+
+
+==== agi_stream_file ====
+
+Play the given audio file, allowing playback to be interrupted by a DTMF digit. This command is similar to the GET DATA 
+command but this command returns after the first DTMF digit has been pressed while GET DATA can accumulated any number of 
+digits before returning.
+
+  * @link http://www.voip-info.org/wiki-stream+file
+  * @param string $filename without extension, often in /var/lib/asterisk/sounds
+  * @param string $escape_digits
+  * @param integer $offset
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
+  * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
+{{{
+function agi_stream_file($filename, $escape_digits='', $offset=0)
+}}}
+
+
+==== agi_tdd_mode ====
+
+Enable or disable TDD transmission/reception on the current channel.
+
+  * @link http://www.voip-info.org/wiki-tdd+mode
+  * @param string $setting can be on, off or mate
+  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 if the channel is not TDD capable.
+{{{
+function agi_tdd_mode($setting)
+}}}
+
+
+==== agi_verbose ====
+
+Sends $message to the Asterisk console via the 'verbose' message system.
+
+If the Asterisk verbosity level is $level or greater, send $message to the console.
+
+The Asterisk verbosity system works as follows. The Asterisk user gets to set the desired verbosity at startup time or later 
+using the console 'set verbose' command. Messages are displayed on the console if their verbose level is less than or equal 
+to desired verbosity set by the user. More important messages should have a low verbose level; less important messages 
+should have a high verbose level.
+
+  * @link http://www.voip-info.org/wiki-verbose
+  * @param string $message
+  * @param integer $level from 1 to 4
+  * @return array, see evaluate for return information.
+{{{
+function agi_verbose($message, $level=1)
+}}}
+
+==== agi_wait_for_digit ====
+
+Waits up to $timeout milliseconds for channel to receive a DTMF digit.
+
+  * @link http://www.voip-info.org/wiki-wait+for+digit
+  * @param integer $timeout in millisecons. Use -1 for the timeout value if you want the call to wait indefinitely.
+  * @return array, see evaluate for return information. ['result'] is 0 if wait completes with no 
+  * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
+{{{
+function agi_wait_for_digit($timeout=-1)
+}}}
+
+==== agi_exec_absolutetimeout ====
+
+Set absolute maximum time of call.
+
+Note that the timeout is set from the current time forward, not counting the number of seconds the call has already been up. 
+Each time you call AbsoluteTimeout(), all previous absolute timeouts are cancelled. 
+Will return the call to the T extension so that you can playback an explanatory note to the calling party (the called party 
+will not hear that)
+
+  * @link http://www.voip-info.org/wiki-Asterisk+-+documentation+of+application+commands
+  * @link http://www.dynx.net/ASTERISK/AGI/ccard/agi-ccard.agi
+  * @param $seconds allowed, 0 disables timeout
+  * @return array, see evaluate for return information.
+{{{
+function agi_exec_absolutetimeout($seconds=0)
+}}}
+
+==== agi_exec_agi ====
+
+Executes an AGI compliant application.
+
+  * @param string $command
+  * @return array, see evaluate for return information. ['result'] is -1 on hangup or if application requested hangup, or 0 on non-hangup exit.
+  * @param string $args
+{{{
+function agi_exec_agi($command, $args)
+}}}
+
+==== agi_exec_setlanguage ====
+
+Set Language.
+
+  * @param string $language code
+  * @return array, see evaluate for return information.
+{{{
+function agi_exec_setlanguage($language='en')
+}}}
+
+==== agi_exec_enumlookup ====
+
+Do ENUM Lookup.
+
+Note: to retrieve the result, use get_variable('ENUM');
+
+  * @param $exten
+  * @return array, see evaluate for return information.
+{{{
+function agi_exec_enumlookup($exten)
+}}}
+
+==== agi_exec_dial ====
+
+Dial takes input from ${VXML_URL} to send XML Url to Cisco 7960
+Dial takes input from ${ALERT_INFO} to set ring cadence for Cisco phones
+Dial returns ${CAUSECODE}: If the dial failed, this is the errormessage.
+Dial returns ${DIALSTATUS}: Text code returning status of last dial attempt.
+
+  * @link http://www.voip-info.org/wiki-Asterisk+cmd+Dial
+  * @param string $type
+  * @param string $identifier
+  * @param integer $timeout
+  * @param string $options
+  * @param string $url
+  * @return array, see evaluate for return information.
+{{{
+function agi_exec_dial($type, $identifier, $timeout=NULL, $options=NULL, $url=NULL)
+}}}
+
+==== agi_exec_goto ====
+
+This function takes three arguments: context,extension, and priority, but the leading arguments
+are optional, not the trailing arguments.  Thuse goto($z) sets the priority to $z.
+
+  * @param string $a
+  * @param string $b;
+  * @param string $c;
+  * @return array, see evaluate for return information.
+{{{
+function agi_exec_goto($a, $b=NULL, $c=NULL)
+}}}
