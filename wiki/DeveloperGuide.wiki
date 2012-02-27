@@ -79,8 +79,10 @@ in most linux 'open files' is limited in poor value, "ulimit -a" to see,
 to change this value, edit: /etc/security/limits.conf
 
 append end of :
+{{{
 * soft nofile 32768
 * hard nofile 65536
+}}}
 
 save and reboot your system.
 
@@ -111,10 +113,10 @@ Usage: ./agispeedy.php [option]
 }}}
 
 four options:
-* debug - output all messages and service frontground.
-* quiet - services run as background.
-* log - services run as background and write ERROR/WARNNING into /tmp/agispeedy.log
-* logfull - services run as background and write all messages into /tmp/agispeedy.log
+  * debug - output all messages and service frontground.
+  * quiet - services run as background.
+  * log - services run as background and write ERROR/WARNNING into /tmp/agispeedy.log
+  * logfull - services run as background and write all messages into /tmp/agispeedy.log
 
 
 ==== services ====
