@@ -75,8 +75,8 @@ if (count($argv) == 2 && $argv[1]=='--debug') {
             "Usage: ".$_SERVER['SCRIPT_NAME']." [options]\n".
             "  --debug       Display more messages on screen.\n".
             "  --quiet       Service as background.\n".
-            "  --log         Write ERROR/WARNNING messages into '/tmp/agispeedy.log'.\n".
-            "  --logfull     Write all messages into '/tmp/agispeedy.log'.\n";
+            "  --log         Quiet and Write ERROR/WARNNING into '/tmp/agispeedy.log'.\n".
+            "  --logfull     Quiet and Write all messages into '/tmp/agispeedy.log'.\n";
     exit;
 }
 
@@ -190,8 +190,10 @@ function sig_chld_handler()
 
     //if killed is normal
     $fork_chld_string = mem_get($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size']);
-    mem_set($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size'],preg_replace("/\,".$pid."=([0-9]+)/","",$fork_chld_string,1));
-    utils_message('[DEBUG]['.__FUNCTION__.']: Released children "'.$pid.'" process.',4);
+    if (strpos($fork_chld_string,',') !== false) {
+        mem_set($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size'],preg_replace("/\,".$pid."=([0-9]+)/","",$fork_chld_string,1));
+        utils_message('[DEBUG]['.__FUNCTION__.']: Released children "'.$pid.'" process.',4);
+    }
 
 }
 
@@ -264,7 +266,7 @@ function server_start()
     }
 
     // pid check and process
-    sleep(1);
+    usleep(100000);
     posix_setsid();
     //chdir('/');
     umask(0);
@@ -1332,10 +1334,10 @@ function agi_set_autohangup($time=0)
 * number will be considered to be part of the name.
 * @return array, see evaluate for return information.
 */
-function agi_set_callerid($cid)
-{
-    return agi_evaluate("SET CALLERID $cid");
-}
+//function agi_set_callerid($cid)
+//{
+//    return agi_evaluate("SET CALLERID $cid");
+//}
 
 /**
 * Sets the context for continuation upon exiting the application.
