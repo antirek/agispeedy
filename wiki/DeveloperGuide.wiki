@@ -187,12 +187,12 @@ agispeedy call agi_router_internal.php in /agispeedy/agiscripts/.
 
 }}}
 
-  * each scripts has same entry function named agi_main().
+  * each scripts has same entry function named start_main().
 {{{
 agi_demo.php:
 
 <?php
-function agi_main()
+function start_main()
 {
     $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
     $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
@@ -292,7 +292,7 @@ Simple Asterisk Gateway Interface functions.
 agi_anyname.php
 {{{
 <?php
-function agi_main()
+function start_main()
 {
     $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
     $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
