@@ -713,7 +713,7 @@ function agi_set_priority($priority)
 
 ==== agi_set_variable ====
 
-Sets a variable to the specified value. The variables so created can later be used by later using ${\<variablename\>}
+Sets a variable to the specified value. The variables so created can later be used by later using ${< variablename >}
 in the dialplan.
 
 These variables live in the channel Asterisk creates when you pickup a phone and as such they are both local and temporary. 
