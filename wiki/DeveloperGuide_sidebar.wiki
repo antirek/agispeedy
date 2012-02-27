@@ -2,7 +2,7 @@
   * [#Installation Installtion]
   * [#Setup Setup]
     * [#Frist_time Frist_time]
-    configure
+    * [#Configure configure]
   * [#Works Works]
     * [#Asterisk Asterisk]
     * [#Agiscripts Agiscripts]

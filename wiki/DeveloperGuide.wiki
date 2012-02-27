@@ -53,7 +53,7 @@ output:
 [1330340965,4851][NOTICE][server_children_work]: children created!
 }}}
 
-=== configure ===
+=== Configure ===
 
 ==== agispeedy.conf ====
 edit /agispeedy/etc/agispeedy.conf to change configure:
