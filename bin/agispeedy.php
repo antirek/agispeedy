@@ -504,10 +504,10 @@ function server_process_connection()
         if (file_exists($CONF['general']['agiscripts_path']."/agi_".$scriptname.".php")==true)  {
             utils_message('[NOTICE]['.__FUNCTION__.']: loading agi_'.$scriptname.'.php',4);
             require($CONF['general']['agiscripts_path']."/agi_".$scriptname.".php");
-            if (function_exists('agi_main')==true) {
-                agi_main();
+            if (function_exists('start_main')==true) {
+                start_main();
             } else {
-                utils_message('[WARNNING]['.__FUNCTION__.']: No Entry function AGI_main in agi_'.$scriptname.'.php',1);
+                utils_message('[WARNNING]['.__FUNCTION__.']: No Entry function start_main in agi_'.$scriptname.'.php',1);
             }
 
         } else {

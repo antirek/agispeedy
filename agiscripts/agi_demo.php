@@ -13,7 +13,7 @@
 
 */
 
-function agi_main()
+function start_main()
 {
     $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
     $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
