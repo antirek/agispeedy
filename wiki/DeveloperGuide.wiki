@@ -1,4 +1,4 @@
-#summary AQL HOW TO
+#summary agispeedy guide
 #labels Featured,Phase-Implementation
 #sidebar DeveloperGuide_sidebar
 
@@ -6,24 +6,209 @@
 
 == Installation ==
 
-Coping inc/ to your script including folder.
-Add one line at header of your script within aql.php, example:
+agispeedy compitable with linux system and asterisk.
+cloud listen on 4573 (FastAGI port in asterisk).
+your need install PHP >= 5.1.6
 
+now!
+
+frist download agispeedy source tarball.
+
+copying files:
+{{{
+> tar zxvf agispeedy.X.X.tar.gz
+> cp -rf agispeedy/ /
+> cd /agispeedy/
+> chmod +x bin/*
+}}}
+
+== Setup ==
+
+=== Frist_time ===
+folder struction:
+{{{
+agiscripts/	<--- save your agi scripts for agispeedy
+bin/	<--- agispeedy main server
+contrib/	<-- init script for centos
+etc/	<--- agispeedy.conf here
+}}}
+
+try to startup agispeedy by manual:
+{{{
+cd /agispeedy/bin/
+./agispeedy.php --debug
+
+output:
+[1330340963,4842][NOTICE]: Agispeedy - AGI ApplicationServer 0.8 starting...
+[1330340964,4842][NOTICE][socket_open]: Services on 0.0.0.0:4573
+[1330340964,4844][NOTICE][server_children_work]: children created!
+[1330340964,4845][NOTICE][server_children_work]: children created!
+[1330340964,4846][NOTICE][server_children_work]: children created!
+[1330340965,4847][NOTICE][server_children_work]: children created!
+[1330340965,4848][NOTICE][server_children_work]: children created!
+[1330340965,4849][NOTICE][server_children_work]: children created!
+[1330340965,4850][NOTICE][server_children_work]: children created!
+[1330340965,4851][NOTICE][server_children_work]: children created!
+}}}
+
+=== configure ===
+
+==== agispeedy.conf ====
+edit /agispeedy/etc/agispeedy.conf to change configure:
 {{{
 
-<?
-require("../inc/aql.php");
+[general]
+agiscripts_path=/agispeedy/agiscripts/     <--- where is your agiscripts to change
+pidfile_path=/var/run/    <--- pid file path, need write and read permission
 
-$a = new aql();
+// daemon settings
+[daemon]
+host=0.0.0.0    <--- accept ip 0.0.0.0 from all, 127.0.0.1 only local
+port=4573       <--- FastAGI is 4573
+mem_idle_size=1024    <--- idle record in size, please don't change
+mem_forkchld_size=32768    <--- fork children in size, please don't change
+max_children_lifesec=300   <--- max children execution time limits in sec
+max_connections=2048    <--- max connections limits, 8 to 4096
+max_idle_servers=8    <--- max perfork idle clone, 2 to 64
 
-if (!$a->set('basedir','./')) {
-    echo __LINE__.' '.$a->get_error();
-}
-
-$a->query(....);
-.....
-?>
 }}}
+
+==== open files ====
+enable change your need restart agispeedy services.
+in most linux 'open files' is limited in poor value, "ulimit -a" to see,
+to change this value, edit: /etc/security/limits.conf
+
+append end of :
+* soft nofile 32768
+* hard nofile 65536
+
+save and reboot your system.
+
+==== database ====
+agispeedy not support mysql_pconnect, agi connect database in each request.
+if your need fast database connect you can use hook functions to make connect at children creating.
+
+and don't forget add your database max connection limits.
+
+
+==== commandline ====
+run agispeedy in command:
+{{{
+
+> /agispeedy/bin/agispeedy.php
+
+AGISPEEDY-PHP version 0.8
+Author: Sun bing <hoowa.sun@gmail.com>
+This is free software, and you are welcome to modify and redistribute it
+under the GPL version 2 license.
+This software comes with ABSOLUTELY NO WARRANTY.
+
+Usage: ./agispeedy.php [option]
+  --debug       Display more messages on screen.
+  --quiet       Service as background.
+  --log         Quiet and Write ERROR/WARNNING into '/tmp/agispeedy.log'.
+  --logfull     Quiet and Write all messages into '/tmp/agispeedy.log'.
+}}}
+
+four options:
+* debug - output all messages and service frontground.
+* quiet - services run as background.
+* log - services run as background and write ERROR/WARNNING into /tmp/agispeedy.log
+* logfull - services run as background and write all messages into /tmp/agispeedy.log
+
+
+==== services ====
+init.d scripts in /agispeedy/contrib/ support centos/redhat system.
+
+{{{
+> cp /agispeedy/contrib/agispeedy.init.centos /etc/init.d/agispeedy/
+> chkconfig --add agispeedy
+> chkconfig --list|grep agispeedy
+agispeedy       0:off   1:off   2:on    3:on    4:on    5:on    6:off
+}}}
+
+just start services as:
+{{{
+/etc/init.d/agispeedy start
+}}}
+
+stop services as:
+{{{
+/etc/init.d/agispeedy stop
+}}}
+
+restart services as:
+{{{
+/etc/init.d/agispeedy restart
+}}}
+
+service under safe_agispeedy mode.
+
+== Works ==
+
+=== Asterisk ===
+Yes, Asterisk extension syntax little different with normal AGI.
+
+for example, your before extension:
+{{{
+
+[demo]
+exten => 8888,1,AGI(demo.php,digits=123456)
+exten => 8888,n,Hangup()
+
+}}}
+
+now new extension is:
+{{{
+
+[demo]
+exten => 8888,1,AGI(agi://127.0.0.1/demo,digits=123456)
+exten => 8888,n,Hangup()
+
+}}}
+
+and if your agispeedy in remote server, change 127.0.0.1 to that server ip.
+
+=== Agiscripts ===
+
+* each agispeedy scripts must put in /agispeedy/agiscripts/
+
+* each scripts must name prefix agi_+scriptname+.php, example:
+{{{
+exten => 8888,1,AGI(agi://127.0.0.1/demo,digits=123456)
+agispeedy call agi_demo.php in /agispeedy/agiscripts/.
+
+exten => 8888,1,AGI(agi://127.0.0.1/router_internal,digits=123456)
+agispeedy call agi_router_internal.php in /agispeedy/agiscripts/.
+
+}}}
+
+* each scripts has same entry function named agi_main().
+{{{
+agi_demo.php:
+
+<?php
+function agi_main()
+{
+    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
+    $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
+    $AGI_PARAMS = $CLIENT['agi']['params']; //agi params variable
+
+    agi_answer();
+    agi_say_digits($AGI_PARAMS['digits']);
+    agi_hangup();
+
+return(true);
+}
+?>
+
+}}}
+
+* you can change agiscripts in anytime without restart services.
+
+so now, did you run your frist agispeedy scripts?
+
+
 
 == CommandLine ==
 
