@@ -64,7 +64,7 @@ function hooks_fork_children()
     Fast Database connect, you can connect database after fork children and register it
     in to $CLIENT variables
     for example:
-    */
+
         $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
 
         $link = mysql_connect('localhost', 'root', '', false, MYSQL_CLIENT_INTERACTIVE);
@@ -80,7 +80,7 @@ function hooks_fork_children()
         utils_message('[DEBUG]['.__FUNCTION__.']: Database Connected!',4);
         $CLIENT['link']=$link;
 
-
+    */
 
 }
 
@@ -103,12 +103,12 @@ function hooks_connection_close()
     /* 
     Fast Database connect, after asterisk disconnect you can immediately to close database link
     for example:
-    */
+
         $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
         mysql_close($CLIENT['link']);
         $CLIENT['link']=null;
         utils_message('[DEBUG]['.__FUNCTION__.']: Database Disconnected!',4);
-
+    */
 
 }
 
