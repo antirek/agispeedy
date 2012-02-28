@@ -53,6 +53,7 @@ $SERVER = array();
 $CLIENT = array();
 $ALLOW_RUN = true;
 $ALLOW_FORKCHILD = true;
+$STDERR = fopen("php://stderr","w");
 
 /*-------------------------------------------------------------------------
   incoming args check
@@ -91,6 +92,7 @@ $SERVER['sock'] = null;  // sock handle
 $SERVER['pid'] = null;
 $SERVER['children_idles'] = array();  // fix1 idle childrens
 $SERVER['children_idle_fifo'] = '/var/lock/agispeedy_idle_fifo';  // fix1 idle fifo
+$SERVER['children_lists'] = array();  // fix2 children lists
 
 /*
     READ CONF
@@ -159,10 +161,11 @@ if(!file_exists($SERVER['children_idle_fifo'])) {
 }
 
 
+// fix2
 // Register shm memory idle variable
 // keyid 10 is children_lists
-$SERVER['shm_res'] = mem_open(18600061138,$CONF['daemon']['mem_forkchld_size']);
-mem_set($SERVER['shm_res'],10,array());
+//$SERVER['shm_res'] = mem_open(18600061138,$CONF['daemon']['mem_forkchld_size']);
+//mem_set($SERVER['shm_res'],10,array());
 
 // SIGNAL Operator
 // 
@@ -197,11 +200,15 @@ function sig_chld_handler()
         }
 
         //if killed is normal
-        $children_lists = mem_get($SERVER['shm_res'],10);
-        if (is_array($children_lists) && array_key_exists($pid,$children_lists)) {
+        //fix2
+        /*$children_lists = mem_get($SERVER['shm_res'],10);
+        if (is_array($children_lists) && array_key_exists($pid,$children_lists)) {*/
+        if (array_key_exists($pid,$SERVER['children_lists'])) {
             utils_message('[DEBUG]['.__FUNCTION__.']: Released children "'.$pid.'" process.',4);
-            unset($children_lists[$pid]);
-            mem_set($SERVER['shm_res'],10,$children_lists);
+            unset($SERVER['children_lists'][$pid]);
+            //fix2 
+            //unset($children_lists[$pid]);
+            //mem_set($SERVER['shm_res'],10,$children_lists);
         }
     }
 }
@@ -316,8 +323,8 @@ function server_stop()
 	if(is_resource($SERVER['sock']))
         socket_close($SERVER['sock']);
 
-    shm_remove($SERVER['shm_res']);
-    shm_detach($SERVER['shm_res']);
+//    shm_remove($SERVER['shm_res']);
+//    shm_detach($SERVER['shm_res']);
 
     //delete pid
     usleep(100000);
@@ -335,12 +342,16 @@ function server_children_cleanup()
     $CONF = &$GLOBALS['CONF'];
     $GLOBALS['ALLOW_FORKCHILD'] = false;    //stop fork children
 
+    /* fix2
     $children_lists = mem_get($SERVER['shm_res'],10);
 
     foreach ($children_lists as $each_pid=>$value) {
+        */
+    foreach ($SERVER['children_lists'] as $each_pid=>$value) {
         utils_message('[DEBUG]['.__FUNCTION__.']: Children ['.$each_pid.'] terminated...',4);
         posix_kill($each_pid,9);
     }
+    $SERVER['children_lists']=array();
 
 }
 
@@ -368,9 +379,12 @@ function server_loop()
         stream_set_blocking($pipe_handle,false);
 
         // remember to shm
+        /* fix2
         $children_lists = mem_get($SERVER['shm_res'],10);
         $children_lists[$pid]=time();
         mem_set($SERVER['shm_res'],10,$children_lists);
+        */
+        $SERVER['children_lists'][$pid]=time();
 
     //in child
     } else {
@@ -378,8 +392,11 @@ function server_loop()
         $pipe_handle = fopen($SERVER['children_idle_fifo'], 'w');
         fclose($pipe_handle);
 
+        sleep(10); //wait for main server pipe open
+
         //timer work
-        server_timeout_checker();
+        //fix2
+        //server_timeout_checker();
         exit;
     }
 
@@ -418,8 +435,11 @@ function server_loop()
 
         }
 
+        /*fix2
         $children_lists = mem_get($SERVER['shm_res'],10);
         $children_list_count = count($children_lists);
+        */
+        $children_list_count = count($SERVER['children_lists']);
 
         // create new perfork children
         if (count($SERVER['children_idles']) < $CONF['daemon']['max_idle_servers'] && $GLOBALS['ALLOW_FORKCHILD'] == true) {
@@ -448,8 +468,11 @@ function server_loop()
                 $SERVER['children_idles'][$pid] = $pid;
                 
                 // set to shm forkchld
+                /*fix2
                 $children_lists[$pid]=time();
                 mem_set($SERVER['shm_res'],10,$children_lists);
+                */
+                $SERVER['children_lists'][$pid]=time();
 
                 continue;
             }
@@ -470,6 +493,8 @@ function server_children_work()
 
     $newpid=posix_getpid();
     $CLIENT['pid']=$newpid;
+    $CLIENT['create_time']=time();
+
     utils_message('[NOTICE]['.__FUNCTION__.']: children created!',4);
 
     $lock = fopen($SERVER['pid_file'],'r');
@@ -581,6 +606,7 @@ return(true);
 
 
 // notice: this function only timeout checker in special chilren
+/*fix2
 function server_timeout_checker()
 {
     $SERVER = &$GLOBALS['SERVER'];
@@ -607,6 +633,7 @@ function server_timeout_checker()
     }
 
 }
+*/
 
 
 /*-------------------------------------------------------------------------
@@ -766,40 +793,40 @@ return $szSocketRead;
 
 // memory control
 // create an memcontrol
-function mem_open($hexid,$size)
-{
-    $shmid = null;
-    // shm for chldidle pid
-    for ($i=1;$i<=3;$i++) {
-        $shmid = @shm_attach($hexid,$size,0600);
-        if ($shmid != true) {
-            sleep(1);
-        } else {
-            break;
-        }
-    }
-    shm_remove($shmid);
-    if ($shmid===false) {
-        utils_message('[ERROR]['.__FUNCTION__.']: failure to request shm memory.',0);
-        exit;
-    }
-    return($shmid);
-}
-
-// memory control
-// get data from memory
-function mem_get($shmid,$key)
-{
-    $data = shm_get_var($shmid,$key);
-    return($data);
-}
-
-// memory control
-// set data to memory
-function mem_set($shmid,$key,$data)
-{
-    return(shm_put_var($shmid, $key, $data));
-}
+//function mem_open($hexid,$size)
+//{
+//    $shmid = null;
+//    // shm for chldidle pid
+//    for ($i=1;$i<=3;$i++) {
+//        $shmid = @shm_attach($hexid,$size,0600);
+//        if ($shmid != true) {
+//            sleep(1);
+//        } else {
+//            break;
+//        }
+//    }
+//    shm_remove($shmid);
+//    if ($shmid===false) {
+//        utils_message('[ERROR]['.__FUNCTION__.']: failure to request shm memory.',0);
+//        exit;
+//    }
+//    return($shmid);
+//}
+//
+//// memory control
+//// get data from memory
+//function mem_get($shmid,$key)
+//{
+//    $data = shm_get_var($shmid,$key);
+//    return($data);
+//}
+//
+//// memory control
+//// set data to memory
+//function mem_set($shmid,$key,$data)
+//{
+//    return(shm_put_var($shmid, $key, $data));
+//}
 
 
 // output messages
@@ -811,17 +838,20 @@ function utils_message($szMessage,$msgLevel=4)
     if ($rpType === 0) {
 
         $szMessage = "[".time().",".posix_getpid()."]".$szMessage;
-        $stdError = fopen("php://stderr","w");
-        fwrite($stdError,$szMessage."\n");
-        fclose($stdError);
+        //fix2
+        //$stdError = fopen("php://stderr","w");
+        //fwrite($stdError,$szMessage."\n");
+        //fclose($stdError);
+        fwrite($GLOBALS['STDERR'],$szMessage."\n");
 
     // --quiet == 0 ONLY ERROR DISPLAY
     } elseif ($rpType === 1 && $msgLevel === 0) {
 
-        $szMessage = "[".time().",".posix_getpid()."]".$szMessage;
-        $stdError = fopen("php://stderr","w");
-        fwrite($stdError,$szMessage."\n");
-        fclose($stdError);
+        //fix2
+        //$stdError = fopen("php://stderr","w");
+        //fwrite($stdError,$szMessage."\n");
+        //fclose($stdError);
+        fwrite($GLOBALS['STDERR'],$szMessage."\n");
 
     // --log == 1 ALL NOT DISPLAY, BUT SAVE AS WARNING
     } elseif ($rpType === 2 && $msgLevel <= 1) {
