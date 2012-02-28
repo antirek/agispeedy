@@ -22,6 +22,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
     MA 02110-1301, USA.
+
+
+    $Id$
 */
 
 
@@ -47,7 +50,7 @@ define('AST_STATE_BUSY', 7);
 define('AST_STATE_DIALING_OFFHOOK', 8);
 define('AST_STATE_PRERING', 9);
 
-$VERSION = '0.8';
+$VERSION = '0.9';
 $CONF = null;
 $SERVER = array();
 $CLIENT = array();
@@ -89,6 +92,8 @@ $SERVER['name'] = basename($_SERVER['SCRIPT_NAME'],'.php');
 $SERVER['workdir'] = getcwd();  //work directory
 $SERVER['sock'] = null;  // sock handle
 $SERVER['pid'] = null;
+$SERVER['children_idles'] = array();  // fix1 idle childrens
+$SERVER['children_idle_fifo'] = '/var/lock/agispeedy_idle_fifo';  // fix1 idle fifo
 
 /*
     READ CONF
@@ -149,11 +154,18 @@ if ($CONF['daemon']['max_connections'] < $CONF['daemon']['max_idle_servers']) {
     exit;
 }
 
+// fix1
+if(!file_exists($SERVER['children_idle_fifo'])) {
+    // create the pipe
+    umask(0);
+    posix_mkfifo($SERVER['children_idle_fifo'],0600);
+}
+
+
 // Register shm memory idle variable
-// which chldidle saving in shm sharedmemory
 //
-$SERVER['shm_chldidle_id'] = mem_open(substr(time(),3).'0',$CONF['daemon']['mem_idle_size']);
-$SERVER['shm_forkchld_id'] = mem_open(substr(time(),3).'1',$CONF['daemon']['mem_forkchld_size']);
+$SERVER['shm_res'] = mem_open(18600061138,$CONF['daemon']['mem_forkchld_size']);
+mem_set($SERVER['shm_res'],'children_lists',array());
 
 // SIGNAL Operator
 // 
@@ -180,21 +192,21 @@ function sig_chld_handler()
     $SERVER = &$GLOBALS['SERVER'];
     $CONF = &$GLOBALS['CONF'];
 
-    $pid = pcntl_waitpid(-1, $status,WNOHANG);
+    while (($pid = pcntl_waitpid(-1, $status,WNOHANG)) > 0)
+    {
+        if (isset($SERVER['children_idles'][$pid])) {
+            utils_message('[DEBUG]['.__FUNCTION__.']: Released idle "'.$pid.'" process.',4);
+            unset($SERVER['children_idles'][$pid]);
+        }
 
-    //if killed is chld_idle remove from shm_chldidle_id
-    $chld_idle_string = mem_get($SERVER['shm_chldidle_id'],$CONF['daemon']['mem_idle_size']);
-    if (strpos($chld_idle_string,",".$pid)!==false) {
-        mem_set($SERVER['shm_chldidle_id'],$CONF['daemon']['mem_idle_size'],str_replace(",".$pid,"",$chld_idle_string));
+        //if killed is normal
+        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        if (is_array($children_lists) && array_key_exists($pid,$children_lists)) {
+            utils_message('[DEBUG]['.__FUNCTION__.']: Released children "'.$pid.'" process.',4);
+            unset($children_lists[$pid]);
+            mem_set($SERVER['shm_res'],'children_lists',$children_lists);
+        }
     }
-
-    //if killed is normal
-    $fork_chld_string = mem_get($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size']);
-    if (strpos($fork_chld_string,',') !== false) {
-        mem_set($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size'],preg_replace("/\,".$pid."=([0-9]+)/","",$fork_chld_string,1));
-        utils_message('[DEBUG]['.__FUNCTION__.']: Released children "'.$pid.'" process.',4);
-    }
-
 }
 
 // change user/group
@@ -307,8 +319,8 @@ function server_stop()
 	if(is_resource($SERVER['sock']))
         socket_close($SERVER['sock']);
 
-    shmop_close($SERVER['shm_chldidle_id']);
-    shmop_close($SERVER['shm_forkchld_id']);
+    shm_remove($SERVER['shm_res']);
+    shm_detach($SERVER['shm_res']);
 
     //delete pid
     usleep(100000);
@@ -319,20 +331,16 @@ function server_stop()
 
 }
 
-// cleanup children
+// in server: cleanup children
 function server_children_cleanup()
 {
     $SERVER = &$GLOBALS['SERVER'];
     $CONF = &$GLOBALS['CONF'];
     $GLOBALS['ALLOW_FORKCHILD'] = false;    //stop fork children
 
-    $fork_chld_string = mem_get($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size']);
+    $children_lists = mem_get($SERVER['shm_res'],'children_lists');
 
-    foreach (explode(",",$fork_chld_string) as $each) {
-        if (trim($each)==null)
-            continue;
-        $kv = explode("=",$each);
-        $each_pid = trim($kv[0]);
+    foreach ($children_lists as $each_pid=>$value) {
         utils_message('[DEBUG]['.__FUNCTION__.']: Children ['.$each_pid.'] terminated...',4);
         posix_kill($each_pid,9);
     }
@@ -345,39 +353,82 @@ function server_loop()
     $SERVER = &$GLOBALS['SERVER'];
     $CONF = &$GLOBALS['CONF'];
 
+    //fix1
+    $pipe_handle=null;
+    $pipe_buffer=null;
+
     // start background timer children
     $pid = pcntl_fork();
     //fork failed
     if ($pid == -1) {
         utils_message('[ERROR]['.__FUNCTION__.']: fork failure!',0);
         exit();
-    //in parent nothing to do
+
+    //in parent
     } elseif ($pid)	{
+        // fix1 add pipe in children(pipe must read and write both open)
+        $pipe_handle = fopen($SERVER['children_idle_fifo'],"r");
+        stream_set_blocking($pipe_handle,false);
+
+        // remember to shm
+        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        $children_lists[$pid]=time();
+        mem_set($SERVER['shm_res'],'children_lists',$children_lists);
+
     //in child
     } else {
-        // remember to shm
-        $fork_chld_string = mem_get($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size']);
-        mem_set($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size'],$fork_chld_string.','.posix_getpid().'='.time());
+        // fix1 add pipe in children(pipe must read and write both open)
+        $pipe_handle = fopen($SERVER['children_idle_fifo'], 'w');
+        fclose($pipe_handle);
+
+        //timer work
         server_timeout_checker();
         exit;
     }
+
 
     // create perfork children loop
     while ($GLOBALS['ALLOW_RUN']==true)
     {
 
-        // get all in idle
-        $chld_idle_string = mem_get($SERVER['shm_chldidle_id'],$CONF['daemon']['mem_idle_size']);
-        $chld_idle_count = str_word_count($chld_idle_string,0,',');
-        // get all in forkchld
-        $fork_chld_string = mem_get($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size']);
-        $fork_chld_count = str_word_count($fork_chld_string,0,',');
+        // fix1
+        // CHECKING IDLES DATA FROM PIPE
+        $pipe_newbuf = fread($pipe_handle,1024);
+        $pipe_newbuf = trim($pipe_newbuf);
+        //if pipe has data
+        if ($pipe_newbuf != null) {
+
+            $pipe_newbuf  = $pipe_buffer.$pipe_newbuf;//add before buffer
+            $pipe_buffer = null; //null old buffer
+
+            $pipe_data_array = explode("#",$pipe_newbuf);
+
+            //buffer surplus
+            if ($pipe_newbuf[strlen($pipe_newbuf)-1] != '#') {
+                $pipe_buffer = $pipe_data_array[count($pipe_data_array)-1];
+                array_pop($pipe_data_array);
+            }
+
+            //remove from idle array
+            foreach ($pipe_data_array as $each) {
+                if ($each==null)
+                    continue;
+                $kv = explode(",",$each);
+                if (isset($SERVER['children_idles'][$kv[0]])) {
+                    unset($SERVER['children_idles'][$kv[0]]);
+                }
+            }
+
+        }
+
+        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        $children_list_count = count($children_lists);
 
         // create new perfork children
-        if ($chld_idle_count < $CONF['daemon']['max_idle_servers'] && $GLOBALS['ALLOW_FORKCHILD'] == true) {
+        if (count($SERVER['children_idles']) < $CONF['daemon']['max_idle_servers'] && $GLOBALS['ALLOW_FORKCHILD'] == true) {
 
             // max of connections
-            if ($fork_chld_count > $CONF['daemon']['max_connections']) {
+            if ($children_list_count > $CONF['daemon']['max_connections']) {
                 utils_message('[WARNNING]['.__FUNCTION__.']: Connection max of limits!',0);
                 usleep(10000);
                 continue;
@@ -390,13 +441,19 @@ function server_loop()
                 die;
             }
             if ($pid == 0) {//in child
+
                 server_children_work();
                 exit;
+
             } else {//in parent
-                // set to shm forkchld
-                mem_set($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size'],$fork_chld_string.','.$pid.'='.time());
+                
                 // set to shm idle
-                mem_set($SERVER['shm_chldidle_id'],$CONF['daemon']['mem_idle_size'],$chld_idle_string.','.$pid);
+                $SERVER['children_idles'][$pid] = $pid;
+                
+                // set to shm forkchld
+                $children_lists[$pid]=time();
+                mem_set($SERVER['shm_res'],'children_lists',$children_lists);
+
                 continue;
             }
         }
@@ -431,10 +488,10 @@ function server_children_work()
     $connection = @socket_accept($SERVER['sock']);
     flock($lock,LOCK_UN);
 
-    //remove me from chld_idle
-    $chld_idle_string = mem_get($SERVER['shm_chldidle_id'], $CONF['daemon']['mem_idle_size']);
-    $chld_idle_string = str_replace(",".$CLIENT['pid'],"",$chld_idle_string);
-    mem_set($SERVER['shm_chldidle_id'], $CONF['daemon']['mem_idle_size'],$chld_idle_string.(str_pad("\0",$CONF['daemon']['mem_idle_size']-strlen($chld_idle_string))));
+    //tell parent pipe remove me
+    $pipe_handle = fopen($SERVER['children_idle_fifo'], 'w');
+    fwrite($pipe_handle,$CLIENT['pid'].",1#");
+    fclose($pipe_handle);
 
     if ($connection === false)	{
         usleep(1000); //sleep 0.0001 sec
@@ -444,6 +501,9 @@ function server_children_work()
         socket_close($SERVER['sock']);// we have incoming and close main sock
         $CLIENT['sock']=$connection;
         utils_message('[NOTICE]['.__FUNCTION__.']: handle request!',4);
+
+        if (function_exists('hooks_connection_accept')==true) // run hooks
+            hooks_connection_accept();
 
         server_process_connection();
 
@@ -531,24 +591,15 @@ function server_timeout_checker()
 
     while ($GLOBALS['ALLOW_RUN']==true)
     {
-        $fork_chld_string = mem_get($SERVER['shm_forkchld_id'],$CONF['daemon']['mem_forkchld_size']);
 
-        foreach (explode(",",$fork_chld_string) as $each) {
-            if (trim($each)==null)//not null
-                continue;
-
-            $kv = explode("=",$each);
-            $each_pid=trim($kv[0]);
-
+        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        foreach ($children_lists as $each_pid=>$value) {
             if ($each_pid == posix_getpid()) //ignore my self
                 continue;
 
-            if (!isset($kv[1])) //no time ignore
-                continue;
+            $timesec = (time()-$value);
 
-            $worktime=trim($kv[1]);
-
-            if ((time()-$worktime) > $CONF['daemon']['max_children_lifesec']) {
+            if ($timesec > $CONF['daemon']['max_children_lifesec']) {
                 utils_message('[DEBUG]['.__FUNCTION__.']: Children ['.$each_pid.'] execution timed out!',4);
                 usleep(200000);
                 posix_kill($each_pid,9);
@@ -667,7 +718,7 @@ function socket_read_response($sock,$eof="\012")
 			if (is_resource($rs)===FALSE)
                 return $szRead;
 
-			$szReadThis=socket_read($rs,2048,PHP_BINARY_READ);
+			$szReadThis=@socket_read($rs,2048,PHP_BINARY_READ);
 			if ($szReadThis===FALSE || strlen($szReadThis)==0){
                 $bFOREVER=FALSE;
                 break;
@@ -723,13 +774,14 @@ function mem_open($hexid,$size)
     $shmid = null;
     // shm for chldidle pid
     for ($i=1;$i<=3;$i++) {
-        $shmid = @shmop_open($hexid,'n',0777,$size);
+        $shmid = @shm_attach($hexid,$size,0600);
         if ($shmid != true) {
             sleep(1);
         } else {
             break;
         }
     }
+    shm_remove($shmid);
     if ($shmid===false) {
         utils_message('[ERROR]['.__FUNCTION__.']: failure to request shm memory.',0);
         exit;
@@ -739,23 +791,17 @@ function mem_open($hexid,$size)
 
 // memory control
 // get data from memory
-function mem_get($shmid,$size)
+function mem_get($shmid,$key)
 {
-    $string = shmop_read($shmid, 0, $size);
-    $string = trim($string);
-
-    return($string);
+    $data = shm_get_var($shmid,$key);
+    return($data);
 }
 
 // memory control
 // set data to memory
-function mem_set($shmid,$size,$string)
+function mem_set($shmid,$key,$data)
 {
-    $string = $string.(str_pad("\0",$size-strlen($string)));
-
-    $bytes = shmop_write($shmid, $string, 0);
-
-    return($bytes);
+    return(shm_put_var($shmid, $key, $data));
 }
 
 

@@ -11,6 +11,8 @@
     $SERVER = &$GLOBALS['SERVER'];  //server variables
     $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
 
+
+    $Id$
 */
 
 function start_main()
