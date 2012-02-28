@@ -22,9 +22,6 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
     MA 02110-1301, USA.
-
-
-    $Id$
 */
 
 
@@ -163,9 +160,9 @@ if(!file_exists($SERVER['children_idle_fifo'])) {
 
 
 // Register shm memory idle variable
-//
+// keyid 10 is children_lists
 $SERVER['shm_res'] = mem_open(18600061138,$CONF['daemon']['mem_forkchld_size']);
-mem_set($SERVER['shm_res'],'children_lists',array());
+mem_set($SERVER['shm_res'],10,array());
 
 // SIGNAL Operator
 // 
@@ -200,11 +197,11 @@ function sig_chld_handler()
         }
 
         //if killed is normal
-        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        $children_lists = mem_get($SERVER['shm_res'],10);
         if (is_array($children_lists) && array_key_exists($pid,$children_lists)) {
             utils_message('[DEBUG]['.__FUNCTION__.']: Released children "'.$pid.'" process.',4);
             unset($children_lists[$pid]);
-            mem_set($SERVER['shm_res'],'children_lists',$children_lists);
+            mem_set($SERVER['shm_res'],10,$children_lists);
         }
     }
 }
@@ -338,7 +335,7 @@ function server_children_cleanup()
     $CONF = &$GLOBALS['CONF'];
     $GLOBALS['ALLOW_FORKCHILD'] = false;    //stop fork children
 
-    $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+    $children_lists = mem_get($SERVER['shm_res'],10);
 
     foreach ($children_lists as $each_pid=>$value) {
         utils_message('[DEBUG]['.__FUNCTION__.']: Children ['.$each_pid.'] terminated...',4);
@@ -371,9 +368,9 @@ function server_loop()
         stream_set_blocking($pipe_handle,false);
 
         // remember to shm
-        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        $children_lists = mem_get($SERVER['shm_res'],10);
         $children_lists[$pid]=time();
-        mem_set($SERVER['shm_res'],'children_lists',$children_lists);
+        mem_set($SERVER['shm_res'],10,$children_lists);
 
     //in child
     } else {
@@ -421,7 +418,7 @@ function server_loop()
 
         }
 
-        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        $children_lists = mem_get($SERVER['shm_res'],10);
         $children_list_count = count($children_lists);
 
         // create new perfork children
@@ -452,7 +449,7 @@ function server_loop()
                 
                 // set to shm forkchld
                 $children_lists[$pid]=time();
-                mem_set($SERVER['shm_res'],'children_lists',$children_lists);
+                mem_set($SERVER['shm_res'],10,$children_lists);
 
                 continue;
             }
@@ -592,7 +589,7 @@ function server_timeout_checker()
     while ($GLOBALS['ALLOW_RUN']==true)
     {
 
-        $children_lists = mem_get($SERVER['shm_res'],'children_lists');
+        $children_lists = mem_get($SERVER['shm_res'],10);
         foreach ($children_lists as $each_pid=>$value) {
             if ($each_pid == posix_getpid()) //ignore my self
                 continue;
