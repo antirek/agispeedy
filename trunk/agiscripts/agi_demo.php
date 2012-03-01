@@ -11,24 +11,26 @@
     $SERVER = &$GLOBALS['SERVER'];  //server variables
     $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
 
+    $agi is object of agi class
+    $agi->input array agi enviroment variables
+    $agi->param array agi input params
+
 
     $Id$
 */
 
-function start_main()
+function agi_main(&$agi)
 {
     $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
-    $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
-    $AGI_PARAMS = $CLIENT['agi']['params']; //agi params variable
 
-    agi_answer();
-    $rt = agi_channel_status();
+    //$agi->answer();
 
-    agi_say_digits($AGI_PARAMS['digits']);
-    $input = agi_stream_file('demo-enterkeywords','0123456789');
-    utils_message('[DEBUG]['.__FUNCTION__.']: receive input is "'.chr($input['result']).'"',4);
+    $res=mysql_query('select now()',$CLIENT['link']);
+    $row=mysql_fetch_assoc($res);
 
-    agi_hangup();
+    $agi->evaluate($row['now()']);
+
+    $agi->hangup();
 
 return(true);
 }

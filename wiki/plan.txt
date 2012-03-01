@@ -1,0 +1,108 @@
+问题:
+1. 文档重新写
+2. 注释重新写
+
+
+centos 6.2:
+
+yum install mysql-server mysql-devel mysql php php-mysql php-mcrypt php-process
+
+wget "http://darwin.freeiris.org/download/asterisk/dahdi-linux-complete-2.4.1.2+2.4.1.tar.gz"
+tar zxvf dahdi-linux-complete-xxx
+cd dahdi-linux-complete-xxx
+make all
+make install
+make config
+cd ..
+
+wget "http://darwin.freeiris.org/download/asterisk/libpri-1.4.11.5.tar.gz"
+tar zxvf libpri-xxx
+cd libpri-xxx
+make
+make install
+cd ..
+
+wget "http://darwin.freeiris.org/download/asterisk/asterisk-1.8.4.2.tar.gz"
+tar zxvf asterisk-1.8.x.x.tar.gz
+cd asterisk-xxx
+./configure
+make
+make install
+make samples
+make config
+
+增加文件打开量:
+编辑/etc/security/limits.conf
+* soft nofile 32768
+* hard nofile 65536
+
+ioncube的安装:
+吧所有的loader存放到/usr/lib/php/modules/
+编写/etc/php.d/ioncube.ini
+zend_extension = /home/hoowa/agispeedy/lib/ioncube_loader_lin_5.1.so
+
+如果你系统不是5.1那就更换那个so文件的名称
+/project/ioncube/ioncube_encoder5 t.php -o tc.php --without-runtime-loader-support --message-if-no-loader "'NOLOAD'"
+
+
+设置个基本的sip.conf
+[8888]
+type=friend
+host=dynamic
+directmedia=no
+secret=8888
+defaultuser=8888
+disallow=all
+allow=gsm
+allow=ulaw
+allow=alaw
+context=default
+
+extension.conf
+[default]
+exten => 8000,1,AGI(agi://127.0.0.1/demo?key1=v1&key2=v2,digits=12345,key4=v4)
+exten => 8000,n,Hangup()
+
+vim /etc/my.cnf
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# The following options will be passed to all MySQL clients
+[client]
+#password       = your_password
+port            = 3306
+socket          = /var/lib/mysql/mysql.sock
+# The MySQL server
+[mysqld]
+port            = 3306
+socket          = /var/lib/mysql/mysql.sock
+skip-locking
+key_buffer = 512M
+max_allowed_packet = 2M
+table_cache = 512
+sort_buffer_size = 2M
+read_buffer_size = 2M
+read_rnd_buffer_size = 8M
+myisam_sort_buffer_size = 128M
+thread_cache_size = 8
+query_cache_size= 256M
+# Try number of CPU's*2 for thread_concurrency, ATOM = 2,ATOM2 = 4,E7400 = 8,Q9550 = 16
+thread_concurrency = 4
+max_connections = 2048
+wait_timeout=120
+server-id       = 1
+[mysqldump]
+quick
+max_allowed_packet = 16M
+[mysql]
+no-auto-rehash
+# Remove the next comment character if you are not familiar with SQL
+#safe-updates
+[isamchk]
+key_buffer = 128M
+sort_buffer_size = 128M
+read_buffer = 2M
+write_buffer = 2M
+[myisamchk]
+key_buffer = 256M
+sort_buffer_size = 256M
+read_buffer = 4M
+write_buffer = 4M

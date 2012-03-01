@@ -64,23 +64,23 @@ function hooks_fork_children()
     Fast Database connect, you can connect database after fork children and register it
     in to $CLIENT variables
     for example:
-
-        $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
-
-        $link = mysql_connect('localhost', 'root', '', false, MYSQL_CLIENT_INTERACTIVE);
-        if (!$link) {
-            utils_message('[WARNNING]['.__FUNCTION__.']: Cloud not connect '.mysql_error(),1);
-            exit;
-        }
-        $db_selected = mysql_select_db('test', $link);
-        if (!$db_selected) {
-            utils_message('[WARNNING]['.__FUNCTION__.']: Cloud not use test '.mysql_error(),1);
-            exit;
-        }
-        utils_message('[DEBUG]['.__FUNCTION__.']: Database Connected!',4);
-        $CLIENT['link']=$link;
-
     */
+
+    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
+    $SERVER = &$GLOBALS['SERVER'];  //server variables
+
+    $link = mysql_connect('localhost', 'root', '', false, MYSQL_CLIENT_INTERACTIVE);
+    if (!$link) {
+        utils_message('['.__FUNCTION__.']: Cloud not connect '.mysql_error(),1,$SERVER['runmode'],$SERVER['output_level']);
+        exit;
+    }
+    $db_selected = mysql_select_db('test', $link);
+    if (!$db_selected) {
+        utils_message('['.__FUNCTION__.']: Cloud not use test '.mysql_error(),1,$SERVER['runmode'],$SERVER['output_level']);
+        exit;
+    }
+    utils_message('['.__FUNCTION__.']: Database Connected!',4,$SERVER['runmode'],$SERVER['output_level']);
+    $CLIENT['link']=$link;
 
 }
 
@@ -103,12 +103,13 @@ function hooks_connection_close()
     /* 
     Fast Database connect, after asterisk disconnect you can immediately to close database link
     for example:
-
-        $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
-        mysql_close($CLIENT['link']);
-        $CLIENT['link']=null;
-        utils_message('[DEBUG]['.__FUNCTION__.']: Database Disconnected!',4);
     */
+    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
+    $SERVER = &$GLOBALS['SERVER'];  //server variables
+    mysql_close($CLIENT['link']);
+    $CLIENT['link']=null;
+    utils_message('['.__FUNCTION__.']: Database Disconnected!',4,$SERVER['runmode'],$SERVER['output_level']);
+
 
 }
 
