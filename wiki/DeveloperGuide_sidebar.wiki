@@ -8,4 +8,4 @@
     * [#Agiscripts Agiscripts]
   * [#Functions Functions]
     * [#HOOKS HOOKS]
-    * [#AGI AGI]
+    * [#AGI AGIClass]

@@ -21,15 +21,7 @@
 
 function agi_main(&$agi)
 {
-    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
-
-    //$agi->answer();
-
-    $res=mysql_query('select now()',$CLIENT['link']);
-    $row=mysql_fetch_assoc($res);
-
-    $agi->evaluate($row['now()']);
-
+    $agi->answer();
     $agi->hangup();
 
 return(true);

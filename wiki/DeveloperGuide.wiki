@@ -8,7 +8,7 @@
 
 agispeedy compitable with linux system and asterisk.
 
-cloud listen on 4573 (FastAGI port in asterisk).
+agispeedy is an application server listen on 4573
 
 your need install PHP >= 5.1.6
 
@@ -38,19 +38,19 @@ etc/	<--- agispeedy.conf here
 try to startup agispeedy by manual:
 {{{
 cd /agispeedy/bin/
-./agispeedy.php --debug
+./agispeedy.php --verbose
 
 output:
-[1330340963,4842][NOTICE]: Agispeedy - AGI ApplicationServer 0.8 starting...
-[1330340964,4842][NOTICE][socket_open]: Services on 0.0.0.0:4573
-[1330340964,4844][NOTICE][server_children_work]: children created!
-[1330340964,4845][NOTICE][server_children_work]: children created!
-[1330340964,4846][NOTICE][server_children_work]: children created!
-[1330340965,4847][NOTICE][server_children_work]: children created!
-[1330340965,4848][NOTICE][server_children_work]: children created!
-[1330340965,4849][NOTICE][server_children_work]: children created!
-[1330340965,4850][NOTICE][server_children_work]: children created!
-[1330340965,4851][NOTICE][server_children_work]: children created!
+[INFO][1330655809,1882]: Agispeedy - AGI ApplicationServer 1.0 starting...
+[INFO][1330655809,1882][socket_open]: Services on 0.0.0.0:4573
+[DEBUG][1330655809,1882][server_loop]: children 1883 created!
+[DEBUG][1330655809,1882][server_loop]: children 1884 created!
+[DEBUG][1330655809,1882][server_loop]: children 1885 created!
+[DEBUG][1330655809,1882][server_loop]: children 1886 created!
+[DEBUG][1330655809,1882][server_loop]: children 1887 created!
+[DEBUG][1330655809,1882][server_loop]: children 1888 created!
+[DEBUG][1330655809,1882][server_loop]: children 1889 created!
+[DEBUG][1330655809,1882][server_loop]: children 1890 created!
 }}}
 
 === Configure ===
@@ -67,9 +67,6 @@ pidfile_path=/var/run/    <--- pid file path, need write and read permission
 [daemon]
 host=0.0.0.0    <--- accept ip 0.0.0.0 from all, 127.0.0.1 only local
 port=4573       <--- FastAGI is 4573
-mem_idle_size=1024    <--- idle record in size, please don't change
-mem_forkchld_size=32768    <--- fork children in size, please don't change
-max_children_lifesec=300   <--- max children execution time limits in sec
 max_connections=2048    <--- max connections limits, 8 to 4096
 max_idle_servers=8    <--- max perfork idle clone, 2 to 64
 
@@ -101,25 +98,26 @@ run agispeedy in command:
 
 > /agispeedy/bin/agispeedy.php
 
-AGISPEEDY-PHP version 0.8
-Author: Sun bing <hoowa.sun@gmail.com>
+AGISPEEDY-PHP version 1.0
+Sun bing <hoowa.sun@gmail.com>
 This is free software, and you are welcome to modify and redistribute it
 under the GPL version 2 license.
 This software comes with ABSOLUTELY NO WARRANTY.
 
-Usage: ./agispeedy.php [option]
-  --debug       Display more messages on screen.
-  --quiet       Service as background.
-  --log         Quiet and Write ERROR/WARNNING into '/tmp/agispeedy.log'.
-  --logfull     Quiet and Write all messages into '/tmp/agispeedy.log'.
-}}}
+Usage: /agispeedy/bin/agispeedy.php [--verbose|--quiet] [msgopt]
+  --verbose     Service in front and default messages level 4.
+  --quiet       Service as background default no messages, enable 'msgopt'
+                for save message into '/tmp/agispeedy.log'.
+msgopt:
+  --debug       Message Level 4.
+  --info        Message Level 3.
+  --notice      Message Level 2.
+  --warning     Message Level 1.
+  --error       Message Level 0.
 
-four options:
-  * debug - output all messages and service frontground.
-  * quiet - services run as background.
-  * log - services run as background and write ERROR/WARNNING into /tmp/agispeedy.log
-  * logfull - services run as background and write all messages into /tmp/agispeedy.log
-
+runtime:
+  * --verbose output any thing
+  * --quiet slience
 
 ==== services ====
 init.d scripts in /agispeedy/contrib/ support centos/redhat system.
@@ -187,20 +185,15 @@ agispeedy call agi_router_internal.php in /agispeedy/agiscripts/.
 
 }}}
 
-  * each scripts has same entry function named start_main().
+  * each scripts has same entry function named agi_main().
 {{{
 agi_demo.php:
 
 <?php
-function start_main()
+function agi_main(&$agi)
 {
-    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
-    $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
-    $AGI_PARAMS = $CLIENT['agi']['params']; //agi params variable
-
-    agi_answer();
-    agi_say_digits($AGI_PARAMS['digits']);
-    agi_hangup();
+    $agi->answer();
+    $agi->hangup();
 
 return(true);
 }
@@ -220,6 +213,13 @@ agispeedy provides a number of "hooks" allowing for run your code at different l
 The placement of the hooks can be seen in the PROCESS FLOW section.
 
 edit /agispeedy/bin/agispeedy_hooks.php to write hooks code.
+
+each hook function can reference main variables:
+
+  * $CONF = &$GLOBALS['CONF'];  //config files
+  * $SERVER = &$GLOBALS['SERVER'];  //server variables
+  * $CLIENT = &$GLOBALS['CLIENT'];  //after hooks_asterisk_connection system set this
+
 
 ==== hooks_configure ====
 
@@ -265,6 +265,16 @@ function hooks_fork_children()
 }
 }}}
 
+==== hooks_connection_accept ====
+
+in each children, no effect of server main process.
+take to run immediately after new connectio incoming.
+{{{
+function hooks_connection_accept()
+{
+}
+}}}
+
 ==== hooks_asterisk_connection ====
 
 in each children, no effect of server main process.
@@ -285,50 +295,44 @@ function hooks_connection_close()
 }
 }}}
 
-=== AGI ===
+=== AGIClass ===
 
-Simple Asterisk Gateway Interface functions.
+Simple Asterisk Gateway Interface Object.
 
-agi_anyname.php
+agispeedy create an $agi object of AGI class and provide follow methods.
+
 {{{
-<?php
-function start_main()
+function agi_main(&$agi)
 {
-    $CLIENT = &$GLOBALS['CLIENT'];  //current session variables
-    $AGI_INPUT = $CLIENT['agi']['input'];   //agi enviroment variable
-    $AGI_PARAMS = $CLIENT['agi']['params']; //agi params variable
-
-    agi_answer();
-    agi_say_digits($AGI_PARAMS['digits']);
-    agi_hangup();
+    $agi->answer();
+    $agi->hangup();
 
 return(true);
 }
-?>
 }}}
 
-==== agi_evaluate ====
+==== $agi->evaluate ====
 
 send an agi send and waitting for receive.
 
 AGI commands url : http://www.voip-info.org/wiki/view/Asterisk+AGI
 
 {{{
-$result = agi_evaluate("SAY DIGITS $digits \"$escape_digits\"");
+$result = $agi->evaluate("SAY DIGITS $digits \"$escape_digits\"");
 print_r($result);
 }}}
 
 
-==== agi_answer ====
+==== $agi->answer ====
 
   * Answer channel if not already in answer state.
   * @link http://www.voip-info.org/wiki-answer
   * @return array, see evaluate for return information.  ['result'] is 0 on success, -1 on failure.
 {{{
-function agi_answer()
+function $agi->answer()
 }}}
 
-==== agi_channel_status ====
+==== $agi->channel_status ====
 
 Get the status of the specified channel. If no channel name is specified, return the status of the current channel.
 
@@ -337,11 +341,11 @@ Get the status of the specified channel. If no channel name is specified, return
   * @return array, see evaluate for return information. ['data'] contains description.
 
 {{{
-function agi_channel_status($channel='')
+function $agi->channel_status($channel='')
 }}}
 
 
-==== agi_database_del ====
+==== $agi->database_del ====
 
 Deletes an entry in the Asterisk database for a given family and key.
 
@@ -350,11 +354,11 @@ Deletes an entry in the Asterisk database for a given family and key.
   * @param string $key
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise.
 {{{
-function agi_database_del($family, $key)
+function $agi->database_del($family, $key)
 }}}
 
 
-==== agi_database_deltree ====
+==== $agi->database_deltree ====
 
 Deletes a family or specific keytree within a family in the Asterisk database.
 
@@ -363,11 +367,11 @@ Deletes a family or specific keytree within a family in the Asterisk database.
   * @param string $keytree
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise.
 {{{
-function agi_database_deltree($family, $keytree='')
+function $agi->database_deltree($family, $keytree='')
 }}}
 
 
-==== agi_database_get ====
+==== $agi->database_get ====
 
 Retrieves an entry in the Asterisk database for a given family and key.
 
@@ -376,11 +380,11 @@ Retrieves an entry in the Asterisk database for a given family and key.
   * @param string $key
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 failure. ['data'] holds the value
 {{{
-function agi_database_get($family, $key)
+function $agi->database_get($family, $key)
 }}}
 
 
-==== agi_database_put ====
+==== $agi->database_put ====
 
 Adds or updates an entry in the Asterisk database for a given family, key, and value.
 
@@ -389,11 +393,11 @@ Adds or updates an entry in the Asterisk database for a given family, key, and v
   * @param string $value
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
 {{{
-function agi_database_put($family, $key, $value)
+function $agi->database_put($family, $key, $value)
 }}}
 
 
-==== agi_set_global_var ====
+==== $agi->set_global_var ====
 
 Sets a global variable, using Asterisk 1.6 syntax.
 
@@ -402,11 +406,11 @@ Sets a global variable, using Asterisk 1.6 syntax.
   * @param string|int|float $pValue
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
 {{{
-function agi_set_global_var($pVariable, $pValue)
+function $agi->set_global_var($pVariable, $pValue)
 }}}
 
 
-==== agi_set_var ====
+==== $agi->set_var ====
 Sets a variable, using Asterisk 1.6 syntax.
 
   * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
@@ -414,11 +418,11 @@ Sets a variable, using Asterisk 1.6 syntax.
   * @param string|int|float $pValue
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
 {{{
-function agi_set_var($pVariable, $pValue)
+function $agi->set_var($pVariable, $pValue)
 }}}
 
 
-==== agi_exec ====
+==== $agi->exec ====
 
 Executes the specified Asterisk application with given options.
 
@@ -428,11 +432,11 @@ Executes the specified Asterisk application with given options.
   * @param mixed $options
   * @return array, see evaluate for return information. ['result'] is whatever the application returns, or -2 on failure to find application
 {{{
-function agi_exec($application, $options)
+function $agi->exec($application, $options)
 }}}
 
 
-==== agi_get_data ====
+==== $agi->get_data ====
 
 Plays the given file and receives DTMF data.
 
@@ -467,10 +471,10 @@ way to read a # key using this command.
   * @return array, see evaluate for return information. ['result'] holds the digits and ['data'] holds the timeout if present.
   * This differs from other commands with return DTMF as numbers representing ASCII characters.
 {{{
-function agi_get_data($filename, $timeout=NULL, $max_digits=NULL)
+function $agi->get_data($filename, $timeout=NULL, $max_digits=NULL)
 }}}
 
-==== agi_get_variable ====
+==== $agi->get_variable ====
 
 Fetch the value of a variable.
 Does not work with global variables. Does not work with some variables that are generated by modules.
@@ -481,10 +485,10 @@ Does not work with global variables. Does not work with some variables that are 
   * @param boolean $getvalue return the value only
   * @return array, see evaluate for return information. ['result'] is 0 if variable hasn't been set, 1 if it has. ['data'] holds the value. returns value if $getvalue is TRUE
 {{{
-function agi_get_variable($variable,$getvalue=FALSE)
+function $agi->get_variable($variable,$getvalue=FALSE)
 }}}
 
-==== agi_get_fullvariable ====
+==== $agi->get_fullvariable ====
 
 Fetch the value of a full variable.
   * @link http://www.voip-info.org/wiki/view/get+full+variable
@@ -494,10 +498,10 @@ Fetch the value of a full variable.
   * @param boolean $getvalue return the value only 
   * @return array, see evaluate for return information. ['result'] is 0 if variable hasn't been set, 1 if it has. ['data'] holds the value.  returns value if $getvalue is TRUE
 {{{
-function agi_get_fullvariable($variable,$channel=FALSE,$getvalue=FALSE)
+function $agi->get_fullvariable($variable,$channel=FALSE,$getvalue=FALSE)
 }}}
 
-==== agi_hangup ====
+==== $agi->hangup ====
 
 Hangup the specified channel. If no channel name is given, hang up the current channel.
 
@@ -508,20 +512,20 @@ that is done routinely. If you are not sure why you are doing so, then don't.
   * @param string $channel
   * @return array, see evaluate for return information. ['result'] is 1 on success, -1 on failure.
 {{{
-function agi_hangup($channel='')
+function $agi->hangup($channel='')
 }}}
 
-==== agi_noop ====
+==== $agi->noop ====
 
 Does nothing.
 
   * @link http://www.voip-info.org/wiki-noop
   * @return array, see evaluate for return information.
 {{{
-function agi_noop($string="")
+function $agi->noop($string="")
 }}}
 
-==== agi_receive_char ====
+==== $agi->receive_char ====
 
 Receive a character of text from a connected channel. Waits up to $timeout milliseconds for
 a character to arrive, or infinitely if $timeout is zero.
@@ -531,11 +535,11 @@ a character to arrive, or infinitely if $timeout is zero.
   * @return array, see evaluate for return information. ['result'] is 0 on timeout or not supported, -1 on failure. Otherwise 
   * it is the decimal value of the DTMF tone. Use chr() to convert to ASCII.
 {{{
-function agi_receive_char($timeout=-1)
+function $agi->receive_char($timeout=-1)
 }}}
 
 
-==== agi_record_file ====
+==== $agi->record_file ====
 
 Record sound to a file until an acceptable DTMF digit is received or a specified amount of
 time has passed. Optionally the file BEEP is played before recording begins.
@@ -552,11 +556,11 @@ time has passed. Optionally the file BEEP is played before recording begins.
   * @return array, see evaluate for return information. ['result'] is -1 on error, 0 on hangup, otherwise a decimal value of the 
   * DTMF tone. Use chr() to convert to ASCII.
 {{{
-function agi_record_file($file, $format, $escape_digits='', $timeout=-1, $offset=NULL, $beep=false, $silence=NULL)
+function $agi->record_file($file, $format, $escape_digits='', $timeout=-1, $offset=NULL, $beep=false, $silence=NULL)
 }}}
 
 
-==== agi_say_digits ====
+==== $agi->say_digits ====
 
 Say the given digit string, returning early if any of the given DTMF escape digits are received on the channel.
 
@@ -566,10 +570,10 @@ Say the given digit string, returning early if any of the given DTMF escape digi
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
   * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
 {{{
-function agi_say_digits($digits, $escape_digits='')
+function $agi->say_digits($digits, $escape_digits='')
 }}}
 
-==== agi_say_number ====
+==== $agi->say_number ====
 
 Say the given number, returning early if any of the given DTMF escape digits are received on the channel.
 
@@ -579,10 +583,10 @@ Say the given number, returning early if any of the given DTMF escape digits are
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
   * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
 {{{
-function agi_say_number($number, $escape_digits='')
+function $agi->say_number($number, $escape_digits='')
 }}}
 
-==== agi_say_phonetic ====
+==== $agi->say_phonetic ====
 
 Say the given character string, returning early if any of the given DTMF escape digits are received on the channel.
 
@@ -592,10 +596,10 @@ Say the given character string, returning early if any of the given DTMF escape 
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
   * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
 {{{
-function agi_say_phonetic($text, $escape_digits='')
+function $agi->say_phonetic($text, $escape_digits='')
 }}}
 
-==== agi_say_time ====
+==== $agi->say_time ====
 
 Say a given time, returning early if any of the given DTMF escape digits are received on the channel.
 
@@ -605,10 +609,10 @@ Say a given time, returning early if any of the given DTMF escape digits are rec
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
   * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
 {{{
-function agi_say_time($time=NULL, $escape_digits='')
+function $agi->say_time($time=NULL, $escape_digits='')
 }}}
 
-==== agi_send_image ====
+==== $agi->send_image ====
 
 Send the specified image on a channel.
 Most channels do not support the transmission of images.
@@ -618,11 +622,11 @@ Most channels do not support the transmission of images.
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if the image is sent or 
   * channel does not support image transmission.
 {{{
-function agi_send_image($image)
+function $agi->send_image($image)
 }}}
 
 
-==== agi_send_text ====
+==== $agi->send_text ====
 
 Send the given text to the connected channel.
 Most channels do not support transmission of text.
@@ -632,11 +636,11 @@ Most channels do not support transmission of text.
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if the text is sent or 
   * channel does not support text transmission.
 {{{
-function agi_send_text($text)
+function $agi->send_text($text)
 }}}
 
 
-==== agi_set_autohangup ====
+==== $agi->set_autohangup ====
 
 Cause the channel to automatically hangup at $time seconds in the future.
 If $time is 0 then the autohangup feature is disabled on this channel.
@@ -646,11 +650,11 @@ If the channel is hungup prior to $time seconds, this setting has no effect.
   * @param integer $time until automatic hangup
   * @return array, see evaluate for return information.
 {{{
-function agi_set_autohangup($time=0)
+function $agi->set_autohangup($time=0)
 }}}
 
 
-==== agi_set_context ====
+==== $agi->set_context ====
 
 Sets the context for continuation upon exiting the application.
 
@@ -664,10 +668,10 @@ warning message on the Asterisk console.
   * @param string $context 
   * @return array, see evaluate for return information.
 {{{
-function agi_set_context($context)
+function $agi->set_context($context)
 }}}
 
-==== agi_set_extension ====
+==== $agi->set_extension ====
 
 Set the extension to be used for continuation upon exiting the application.
 
@@ -681,10 +685,10 @@ get a warning message on the Asterisk console.
   * @param string $extension
   * @return array, see evaluate for return information.
 {{{
-function agi_set_extension($extension)
+function $agi->set_extension($extension)
 }}}
 
-==== agi_set_music ====
+==== $agi->set_music ====
 
 Enable/Disable Music on hold generator.
 
@@ -693,10 +697,10 @@ Enable/Disable Music on hold generator.
   * @param string $class
   * @return array, see evaluate for return information.
 {{{
-function agi_set_music($enabled=true, $class='')
+function $agi->set_music($enabled=true, $class='')
 }}}
 
-==== agi_set_priority ====
+==== $agi->set_priority ====
 
 Set the priority to be used for continuation upon exiting the application.
 
@@ -707,11 +711,11 @@ and no warning is issued on the Asterisk console.
   * @param integer $priority
   * @return array, see evaluate for return information.
 {{{
-function agi_set_priority($priority)
+function $agi->set_priority($priority)
 }}}
 
 
-==== agi_set_variable ====
+==== $agi->set_variable ====
 
 Sets a variable to the specified value. The variables so created can later be used by later using ${< variablename >}
 in the dialplan.
@@ -725,11 +729,11 @@ and any variables in that channel are deleted as well.
   * @param string $value
   * @return array, see evaluate for return information.
 {{{
-function agi_set_variable($variable, $value)
+function $agi->set_variable($variable, $value)
 }}}
 
 
-==== agi_stream_file ====
+==== $agi->stream_file ====
 
 Play the given audio file, allowing playback to be interrupted by a DTMF digit. This command is similar to the GET DATA 
 command but this command returns after the first DTMF digit has been pressed while GET DATA can accumulated any number of 
@@ -742,11 +746,11 @@ digits before returning.
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or error, 0 if playback completes with no 
   * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
 {{{
-function agi_stream_file($filename, $escape_digits='', $offset=0)
+function $agi->stream_file($filename, $escape_digits='', $offset=0)
 }}}
 
 
-==== agi_tdd_mode ====
+==== $agi->tdd_mode ====
 
 Enable or disable TDD transmission/reception on the current channel.
 
@@ -754,11 +758,11 @@ Enable or disable TDD transmission/reception on the current channel.
   * @param string $setting can be on, off or mate
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 if the channel is not TDD capable.
 {{{
-function agi_tdd_mode($setting)
+function $agi->tdd_mode($setting)
 }}}
 
 
-==== agi_verbose ====
+==== $agi->verbose ====
 
 Sends $message to the Asterisk console via the 'verbose' message system.
 
@@ -774,10 +778,10 @@ should have a high verbose level.
   * @param integer $level from 1 to 4
   * @return array, see evaluate for return information.
 {{{
-function agi_verbose($message, $level=1)
+function $agi->verbose($message, $level=1)
 }}}
 
-==== agi_wait_for_digit ====
+==== $agi->wait_for_digit ====
 
 Waits up to $timeout milliseconds for channel to receive a DTMF digit.
 
@@ -786,10 +790,10 @@ Waits up to $timeout milliseconds for channel to receive a DTMF digit.
   * @return array, see evaluate for return information. ['result'] is 0 if wait completes with no 
   * digit received, otherwise a decimal value of the DTMF tone.  Use chr() to convert to ASCII.
 {{{
-function agi_wait_for_digit($timeout=-1)
+function $agi->wait_for_digit($timeout=-1)
 }}}
 
-==== agi_exec_absolutetimeout ====
+==== $agi->exec_absolutetimeout ====
 
 Set absolute maximum time of call.
 
@@ -803,10 +807,10 @@ will not hear that)
   * @param $seconds allowed, 0 disables timeout
   * @return array, see evaluate for return information.
 {{{
-function agi_exec_absolutetimeout($seconds=0)
+function $agi->exec_absolutetimeout($seconds=0)
 }}}
 
-==== agi_exec_agi ====
+==== $agi->exec_agi ====
 
 Executes an AGI compliant application.
 
@@ -814,20 +818,20 @@ Executes an AGI compliant application.
   * @return array, see evaluate for return information. ['result'] is -1 on hangup or if application requested hangup, or 0 on non-hangup exit.
   * @param string $args
 {{{
-function agi_exec_agi($command, $args)
+function $agi->exec_agi($command, $args)
 }}}
 
-==== agi_exec_setlanguage ====
+==== $agi->exec_setlanguage ====
 
 Set Language.
 
   * @param string $language code
   * @return array, see evaluate for return information.
 {{{
-function agi_exec_setlanguage($language='en')
+function $agi->exec_setlanguage($language='en')
 }}}
 
-==== agi_exec_enumlookup ====
+==== $agi->exec_enumlookup ====
 
 Do ENUM Lookup.
 
@@ -836,36 +840,5 @@ Note: to retrieve the result, use get_variable('ENUM');
   * @param $exten
   * @return array, see evaluate for return information.
 {{{
-function agi_exec_enumlookup($exten)
-}}}
-
-==== agi_exec_dial ====
-
-Dial takes input from ${VXML_URL} to send XML Url to Cisco 7960
-Dial takes input from ${ALERT_INFO} to set ring cadence for Cisco phones
-Dial returns ${CAUSECODE}: If the dial failed, this is the errormessage.
-Dial returns ${DIALSTATUS}: Text code returning status of last dial attempt.
-
-  * @link http://www.voip-info.org/wiki-Asterisk+cmd+Dial
-  * @param string $type
-  * @param string $identifier
-  * @param integer $timeout
-  * @param string $options
-  * @param string $url
-  * @return array, see evaluate for return information.
-{{{
-function agi_exec_dial($type, $identifier, $timeout=NULL, $options=NULL, $url=NULL)
-}}}
-
-==== agi_exec_goto ====
-
-This function takes three arguments: context,extension, and priority, but the leading arguments
-are optional, not the trailing arguments.  Thuse goto($z) sets the priority to $z.
-
-  * @param string $a
-  * @param string $b;
-  * @param string $c;
-  * @return array, see evaluate for return information.
-{{{
-function agi_exec_goto($a, $b=NULL, $c=NULL)
+function $agi->exec_enumlookup($exten)
 }}}
