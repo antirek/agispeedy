@@ -106,6 +106,13 @@ if (isset($SERVER['cli_args']['--verbose'])==false && isset($SERVER['cli_args'][
     exit;
 }
 
+if (isset($SERVER['cli_args']['--verbose'])==true) {
+    $SERVER['runmode']=0; // 0 means verbose
+    $SERVER['output_level']=4;
+} else {
+    $SERVER['runmode']=1; // 1 means quiet
+}
+
 if (isset($SERVER['cli_args']['--debug'])==true) {
     $SERVER['output_level'] = 4;
 } elseif (isset($SERVER['cli_args']['--info'])==true) {
@@ -118,13 +125,6 @@ if (isset($SERVER['cli_args']['--debug'])==true) {
     $SERVER['output_level'] = 0;
 } else {
     $SERVER['output_level'] = false;
-}
-
-if (isset($SERVER['cli_args']['--verbose'])==true) {
-    $SERVER['runmode']=0; // 0 means verbose
-    $SERVER['output_level']=4;
-} else {
-    $SERVER['runmode']=1; // 1 means quiet
 }
 
 if ($SERVER['output_level'] !== false && $SERVER['runmode'] != 0) {
