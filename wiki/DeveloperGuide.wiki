@@ -8,9 +8,9 @@
 
 agispeedy compitable with linux system and asterisk.
 
-agispeedy is an application server listen on 4573
+agispeedy is an application server listen on 4573.
 
-your need install PHP >= 5.1.6
+your need install PHP >= 5.3.0 because older version doesn't support 'pcntl_sigprocmask'.
 
 now!
 

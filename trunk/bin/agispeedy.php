@@ -36,7 +36,7 @@ declare(ticks = 1);    //fix som bugs with SIG
 // check php version > 5.0.0
 $PHPVERSION = explode('.', PHP_VERSION);
 if (($PHPVERSION[0] * 10000 + $PHPVERSION[1] * 100 + $PHPVERSION[2]) < 50000) {
-    print "Exception : PHP VERSION MUST > 5.0.0\n";
+    print "Exception : PHP VERSION MUST > 5.3.0\n";
     exit;
 }
 
