@@ -54,7 +54,7 @@ define('AST_STATE_BUSY', 7);
 define('AST_STATE_DIALING_OFFHOOK', 8);
 define('AST_STATE_PRERING', 9);
 
-$VERSION = '1.0';
+$VERSION = '1.1';
 $CONF = null;       //config file
 $SERVER = array();  //server variable
 $CLIENT = array();  //client variable
@@ -106,6 +106,8 @@ if (isset($SERVER['cli_args']['--verbose'])==false && isset($SERVER['cli_args'][
     exit;
 }
 
+$SERVER['output_level'] = false;
+
 if (isset($SERVER['cli_args']['--verbose'])==true) {
     $SERVER['runmode']=0; // 0 means verbose
     $SERVER['output_level']=4;
@@ -123,8 +125,6 @@ if (isset($SERVER['cli_args']['--debug'])==true) {
     $SERVER['output_level'] = 1;
 } elseif (isset($SERVER['cli_args']['--error'])==true) {
     $SERVER['output_level'] = 0;
-} else {
-    $SERVER['output_level'] = false;
 }
 
 if ($SERVER['output_level'] !== false && $SERVER['runmode'] != 0) {
