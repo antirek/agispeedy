@@ -398,23 +398,10 @@ function $agi->database_put($family, $key, $value)
 }}}
 
 
-==== $agi->set_global_var ====
-
-Sets a global variable, using Asterisk 1.6 syntax.
-
-  * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
-  * @param string $pVariable
-  * @param string|int|float $pValue
-  * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
-{{{
-function $agi->set_global_var($pVariable, $pValue)
-}}}
-
-
 ==== $agi->set_var ====
 Sets a variable, using Asterisk 1.6 syntax.
 
-  * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
+  * @link http://www.voip-info.org/wiki/view/set+variable
   * @param string $pVariable
   * @param string|int|float $pValue
   * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise

@@ -335,15 +335,15 @@ function server_loop()
         $idlecount = utils_mem_idle_get();
         for ($ice=$idlecount;$ice<$CONF['daemon']['max_idle_servers'];$ice++) {
 
-            //block all sig before fork children
-            pcntl_sigprocmask(SIG_BLOCK,array(SIGTERM,SIGINT,SIGCHLD,SIGHUP));
-
             // max of connections
             $children_list_count = count($CHILDRENS);
             if ($children_list_count > $CONF['daemon']['max_connections']) {
                 utils_message('['.__FUNCTION__.']: Connection max of limits!',0,$SERVER['runmode'],$SERVER['output_level']);
                 break;
             }
+
+            //block all sig before fork children
+            pcntl_sigprocmask(SIG_BLOCK,array(SIGTERM,SIGINT,SIGCHLD,SIGHUP));
 
             // current
             $pid = pcntl_fork();
@@ -383,7 +383,7 @@ function server_loop()
     
 
 
-        usleep(1000);
+        usleep(10000);
     }
 
 }
@@ -510,7 +510,7 @@ function socket_open()
         server_stop();
         exit();
     }
-    if(($ret = @socket_listen($SERVER['sock'], 0))===FALSE ) {    //listen
+    if(($ret = @socket_listen($SERVER['sock'], 256))===FALSE ) {    //listen
         utils_message('['.__FUNCTION__.']: Call to socket listen failed to listen to socket: '.socket_strerror($ret),0,$SERVER['runmode'],$SERVER['output_level']);
         $server_stop();
         exit();
@@ -1034,28 +1034,30 @@ class agispeedy_agi {
     }
 
 
-    /**
-    * Sets a global variable, using Asterisk 1.6 syntax.
-    *
-    * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
-    *
-    * @param string $pVariable
-    * @param string|int|float $pValue
-    * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
-    */
-    function set_global_var($pVariable, $pValue)
-    {
-        if (is_numeric($pValue))
-            return $this->evaluate("Set({$pVariable}={$pValue},g);");
-        else
-            return $this->evaluate("Set({$pVariable}=\"{$pValue}\",g);");
-    }
+//    /**
+//    * Sets a global variable, using Asterisk 1.6 syntax.
+//    *
+//    * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
+//    *
+//    * @param string $pVariable
+//    * @param string|int|float $pValue
+//    * @return array, see evaluate for return information. ['result'] is 1 on sucess, 0 otherwise
+//    */
+//    function set_global_var($pVariable, $pValue)
+//    {
+//        if (is_numeric($pValue))
+//            return $this->agi_exec("Set","{$pVariable}={$pValue},g");
+////            return $this->evaluate("Set({$pVariable}={$pValue},g);");
+//        else
+//            return $this->agi_exec("Set","{$pVariable}=\"{$pValue}\",g");
+////            return $this->evaluate("Set({$pVariable}=\"{$pValue}\",g);");
+//    }
 
 
     /**
-    * Sets a variable, using Asterisk 1.6 syntax.
+    * Sets a variable
     *
-    * @link http://www.voip-info.org/wiki/view/Asterisk+cmd+Set
+    * @link http://www.voip-info.org/wiki/view/set+variable
     *
     * @param string $pVariable
     * @param string|int|float $pValue
@@ -1064,9 +1066,11 @@ class agispeedy_agi {
     function set_var($pVariable, $pValue)
     {
         if (is_numeric($pValue))
-            return $this->evaluate("Set({$pVariable}={$pValue});");
+            return $this->agi_exec("Set","{$pVariable}={$pValue}");
+//            return $this->evaluate("Set({$pVariable}={$pValue});");
         else
-            return $this->evaluate("Set({$pVariable}=\"{$pValue}\");");
+            return $this->agi_exec("Set","{$pVariable}=\"{$pValue}\"");
+//            return $this->evaluate("Set({$pVariable}=\"{$pValue}\");");
     }
 
 
