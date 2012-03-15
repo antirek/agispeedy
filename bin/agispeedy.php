@@ -54,7 +54,7 @@ define('AST_STATE_BUSY', 7);
 define('AST_STATE_DIALING_OFFHOOK', 8);
 define('AST_STATE_PRERING', 9);
 
-$VERSION = '1.1';
+$VERSION = '1.2';
 $CONF = null;       //config file
 $SERVER = array();  //server variable
 $CLIENT = array();  //client variable
@@ -150,8 +150,8 @@ if (is_file('/agispeedy/etc/agispeedy.conf')==true) {
     $SERVER['config_file'] = '/etc/agispeedy.conf';
     $CONF = parse_ini_file($SERVER['config_file'],true);
 
-} elseif (is_file('/etc/freeiris/agispeedy.conf')==true) {
-    $SERVER['config_file'] = '/etc/freeiris/agispeedy.conf';
+} elseif (is_file($SERVER['workdir'].'/../etc/agispeedy.conf')==true) {
+    $SERVER['config_file'] = $SERVER['workdir'].'/../etc/agispeedy.conf';
     $CONF = parse_ini_file($SERVER['config_file'],true);
 
 } elseif (is_file('/etc/asterisk/agispeedy.conf')==true) {
