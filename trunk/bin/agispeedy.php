@@ -69,6 +69,7 @@ $HANDLE_STDERR = fopen("php://stderr","w");    //stderr handle
 $HANDLE_LOGFILE = null; //logfile handle
 
 // server config
+chdir(dirname(__FILE__));
 $SERVER['name'] = basename($_SERVER['SCRIPT_NAME'],'.php');
 $SERVER['workdir'] = getcwd();  //work directory
 $SERVER['sock'] = null;  // sock handle
@@ -236,7 +237,6 @@ function server_start()
     pcntl_signal(SIGCHLD    , 'utils_sig_main_chld');
 
     // pid check and process
-    usleep(100000);
     posix_setsid();
     //chdir($SERVER['workdir']);
     umask(0);
@@ -862,7 +862,9 @@ class agispeedy_agi {
                     }
                 }
             }
-        }
+        } else {
+			$this->scriptname = $agi_request;
+		}
 
         return(true);
     }
