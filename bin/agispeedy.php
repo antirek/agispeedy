@@ -54,7 +54,7 @@ define('AST_STATE_BUSY', 7);
 define('AST_STATE_DIALING_OFFHOOK', 8);
 define('AST_STATE_PRERING', 9);
 
-$VERSION = '1.2';
+$VERSION = '1.4';
 $CONF = null;       //config file
 $SERVER = array();  //server variable
 $CLIENT = array();  //client variable
@@ -434,12 +434,25 @@ function server_children_work()
         server_process_connection();
 
         // after done close client sock
-        socket_close($CLIENT['sock']);
-        utils_message('['.__FUNCTION__.']: exit!',3,$SERVER['runmode'],$SERVER['output_level']);
-
-        if (function_exists('hooks_connection_close')==true) // run hooks
-            hooks_connection_close();
+        server_process_exit();
     }
+}
+
+// in children
+// close and clean and exit children
+function server_process_exit()
+{
+    $SERVER = &$GLOBALS['SERVER'];
+    $CLIENT = &$GLOBALS['CLIENT'];
+    $CONF = &$GLOBALS['CONF'];
+
+    socket_close($CLIENT['sock']);
+    utils_message('['.__FUNCTION__.']: exit!',3,$SERVER['runmode'],$SERVER['output_level']);
+
+    if (function_exists('hooks_connection_close')==true) // run hooks
+        hooks_connection_close();
+
+    exit;
 }
 
 // in children
@@ -553,7 +566,10 @@ function socket_read_response($sock,$eof="\012")
             return $szRead;
 
         //does this io can read?
-        $vSelect = socket_select($r = array($sock), $w =NULL,$e= NULL, 0,$select_tv_usec);
+        $r = array($this->socket);
+        $w =NULL;
+        $e= NULL;
+        $vSelect = @socket_select($r, $w, $e, 0,$select_tv_usec);
         if($vSelect===FALSE)// Select Error
         {
             utils_message('['.__FUNCTION__.']: socket_select() failed, reason: '.socket_strerror(socket_last_error()),1,$SERVER['runmode'],$SERVER['output_level']);
@@ -604,6 +620,11 @@ function socket_read_response($sock,$eof="\012")
 
     }//End Forever
 
+    //exit direct
+    if ($szRead == "HANGUP\012") {
+        server_process_exit();
+    }
+
     utils_message('['.__FUNCTION__.']: read ('.strlen($szRead).')bytes end.',3,$GLOBALS['SERVER']['runmode'],$GLOBALS['SERVER']['output_level']);
 
 return $szRead;
@@ -621,7 +642,9 @@ function socket_send_command($szCommand,$thisSock,$eof="\012")
 
     //write success
 	if(@socket_write($thisSock,$szCommand.$eof)!==FALSE) {
-		$szSocketRead=socket_read_response($thisSock);  // by the way read from socket response
+
+        $szSocketRead=socket_read_response($thisSock);  // by the way read from socket response
+
         utils_message('['.__FUNCTION__.']: Received '.trim($szSocketRead),4,$GLOBALS['SERVER']['runmode'],$GLOBALS['SERVER']['output_level']);
 
     //write failed
@@ -863,8 +886,8 @@ class agispeedy_agi {
                 }
             }
         } else {
-			$this->scriptname = $agi_request;
-		}
+		$this->scriptname = $agi_request;
+	}
 
         return(true);
     }
@@ -1197,9 +1220,13 @@ class agispeedy_agi {
     * @param string $channel
     * @return array, see evaluate for return information. ['result'] is 1 on success, -1 on failure.
     */
-    function hangup($channel='')
+    function hangup($channel=null)
     {
-        return $this->evaluate("HANGUP $channel");
+        if ($channel==null) {
+            return $this->evaluate("HANGUP");
+        } else {
+            return $this->evaluate("HANGUP $channel");
+        }
     }
 
     /**
