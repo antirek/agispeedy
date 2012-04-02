@@ -54,7 +54,7 @@ define('AST_STATE_BUSY', 7);
 define('AST_STATE_DIALING_OFFHOOK', 8);
 define('AST_STATE_PRERING', 9);
 
-$VERSION = '1.4';
+$VERSION = '1.5';
 $CONF = null;       //config file
 $SERVER = array();  //server variable
 $CLIENT = array();  //client variable
@@ -558,7 +558,7 @@ function socket_read_response($sock,$eof="\012")
 	socket_set_nonblock($sock);
 	$iTimeStart	= time(); //begin time
 	$iTimeLastRead = 0; //last read time
-    $select_tv_usec = 1000; //microseconds 0.0001s
+    $select_tv_usec = 100000; //microseconds 0.01s
 	$bFOREVER = true;
 	for(;$bFOREVER;)
     {
