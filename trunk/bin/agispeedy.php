@@ -54,7 +54,7 @@ define('AST_STATE_BUSY', 7);
 define('AST_STATE_DIALING_OFFHOOK', 8);
 define('AST_STATE_PRERING', 9);
 
-$VERSION = '1.5';
+$VERSION = '1.6';
 $CONF = null;       //config file
 $SERVER = array();  //server variable
 $CLIENT = array();  //client variable
@@ -558,7 +558,7 @@ function socket_read_response($sock,$eof="\012")
 	socket_set_nonblock($sock);
 	$iTimeStart	= time(); //begin time
 	$iTimeLastRead = 0; //last read time
-    $select_tv_usec = 100000; //microseconds 0.01s
+    $select_tv_usec = 10000; //microseconds 0.001s
 	$bFOREVER = true;
 	for(;$bFOREVER;)
     {
@@ -566,7 +566,7 @@ function socket_read_response($sock,$eof="\012")
             return $szRead;
 
         //does this io can read?
-        $r = array($this->socket);
+        $r = array($sock);
         $w =NULL;
         $e= NULL;
         $vSelect = @socket_select($r, $w, $e, 0,$select_tv_usec);
@@ -1108,7 +1108,7 @@ class agispeedy_agi {
     * @param mixed $options
     * @return array, see evaluate for return information. ['result'] is whatever the application returns, or -2 on failure to find application
     */
-    function agi_exec($application, $options)
+    function agi_exec($application, $options=null)
     {
         if(is_array($options)) $options = join('|', $options);
         return $this->evaluate("EXEC $application $options");
