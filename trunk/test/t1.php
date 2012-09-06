@@ -25,7 +25,7 @@ while (true)
     } elseif ($connection > 0)  {
 
         $request = read($connection,"\012\012");
-        fwrite($stderr,$request);
+        fwrite($stderr,"-".$request."-");
 
 //        socket_write($connection,$request."\012");
 
@@ -49,16 +49,35 @@ while (true)
 //socket close
 socket_close($sock);
 
-function read($handle,$breakchar="\012")
+function read($handle)
 {
     $data=null;
     $still=true;
+
+/*
+先检测是否能读，如果能读就立即读取，读取完毕后再检测一次是否能读，如果不能读了就立即返回
+
+读的过程中，如果没有遇到\n\r会一直等待下去(因为当前数据有丢失的了)
+*/
+
     while ($still) {
-        $buf=socket_read($handle,1);
-        $data .= $buf;
-        if (preg_match("/".$breakchar."$/",$data)) {
+        //does this io can read?
+        $r = array($handle);
+        $w =NULL;
+        $e= NULL;
+        $vSelect = socket_select($r, $w, $e, 0,10000);
+		if ($vSelect === false) {
+            echo "error\n";
             $still=false;
+            break;
+        } elseif ($vSelect==0)	{
+            $still=false;
+            break;
+        } else {
+            $buf=socket_read($handle,4096,PHP_NORMAL_READ);
+            $data .= $buf;
         }
+
     }
 
     return($data);
